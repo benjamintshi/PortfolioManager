@@ -1,0 +1,38 @@
+{
+  "name": "portfolio-manager-backend",
+  "version": "1.0.0",
+  "description": "个人多资产头寸管理系统后端",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "yahoo-finance2": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.5",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "portfolio",
+    "crypto",
+    "stocks",
+    "gold",
+    "rebalancing"
+  ],
+  "author": "StarBlue",
+  "license": "MIT"
+}
