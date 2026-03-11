@@ -19,6 +19,8 @@ interface RiskMetrics {
     volatility: number
     sharpe_ratio: number
   }
+  insufficient?: boolean
+  message?: string
 }
 
 export default function Analysis() {
@@ -26,6 +28,7 @@ export default function Analysis() {
   const [riskMetrics, setRiskMetrics] = useState<RiskMetrics | null>(null)
   const [optimalAllocation, setOptimalAllocation] = useState<any>(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [riskMessage, setRiskMessage] = useState<string | null>(null)
 
   const { loading, error, execute } = useApi()
 
@@ -40,7 +43,15 @@ export default function Analysis() {
       ])
 
       if (correlationData) setCorrelation(correlationData.correlation_matrix)
-      if (riskData && riskData.volatility !== undefined) setRiskMetrics(riskData)
+      if (riskData) {
+        if ((riskData as any).insufficient) {
+          setRiskMetrics(null)
+          setRiskMessage((riskData as any).message || '历史数据不足，暂不展示风险指标')
+        } else if (riskData.volatility !== undefined) {
+          setRiskMetrics(riskData)
+          setRiskMessage(null)
+        }
+      }
       if (optimalData) setOptimalAllocation(optimalData.optimal_allocation || optimalData.fallback)
     } catch (error) {
       console.error('加载分析数据失败:', error)
@@ -217,13 +228,15 @@ export default function Analysis() {
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>• 夏普比率 &gt; 1 表示风险调整收益较好</p>
                   <p>• 最大回撤显示历史最大亏损幅度</p>
-                  <p>• 基于过去90天数据计算</p>
+                  <p>• 基于过去90天数据计算，剔除了单日异常大幅变动</p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              {analysisLoading ? '正在计算风险指标...' : '暂无风险数据'}
+              {analysisLoading
+                ? '正在计算风险指标...'
+                : (riskMessage || '历史数据不足，暂不展示风险指标')}
             </div>
           )}
         </div>

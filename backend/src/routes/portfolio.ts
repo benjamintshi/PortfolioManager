@@ -158,36 +158,45 @@ router.get('/risk', async (req, res) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     const history = portfolioService.getPortfolioHistory(days);
+
+    const MIN_HISTORY_DAYS = 30;
+    const MAX_ABS_DAILY_RETURN = 0.3; // 单日收益超过 ±30% 视为被大额现金流污染
+    const MIN_RETURN_OBSERVATIONS = 10;
     
-    if (history.length < 2) {
+    if (history.length < MIN_HISTORY_DAYS) {
       return res.json({
         success: true,
         data: {
-          message: '数据不足，无法计算风险指标',
-          required_days: 2,
+          message: `历史天数不足，至少需要 ${MIN_HISTORY_DAYS} 天数据`,
+          insufficient: true,
+          required_days: MIN_HISTORY_DAYS,
           available_days: history.length
         }
       });
     }
     
     // 计算总收益率序列
-    const returns = [];
+    const rawReturns: number[] = [];
     for (let i = 1; i < history.length; i++) {
       const prevValue = history[i - 1].totalValueUsd;
       const currValue = history[i].totalValueUsd;
       
       if (prevValue > 0) {
-        returns.push((currValue - prevValue) / prevValue);
+        rawReturns.push((currValue - prevValue) / prevValue);
       }
     }
+
+    // 过滤掉绝对值过大的单日变动（通常是大额申赎/录入资产导致）
+    const returns = rawReturns.filter(r => Math.abs(r) <= MAX_ABS_DAILY_RETURN);
     
-    if (returns.length === 0) {
+    if (returns.length < MIN_RETURN_OBSERVATIONS) {
       return res.json({
         success: true,
         data: {
-          message: '无法计算收益率',
-          volatility: 0,
-          sharpe_ratio: 0
+          message: '有效收益序列过少，可能被大额资金流入/流出严重干扰，暂不计算风险指标',
+          insufficient: true,
+          required_observations: MIN_RETURN_OBSERVATIONS,
+          available_observations: returns.length
         }
       });
     }
@@ -202,7 +211,29 @@ router.get('/risk', async (req, res) => {
     // 简化的夏普比率（假设无风险利率为0）
     const sharpeRatio = volatility > 0 ? meanReturn / volatility : 0;
     
-    // 最大回撤
+    // 年化处理：使用复利形式，并按交易日估算
+    const TRADING_DAYS = 252;
+    const annualReturn = Math.pow(1 + meanReturn, TRADING_DAYS) - 1;
+    const annualVolatility = volatility * Math.sqrt(TRADING_DAYS);
+    const annualSharpe = sharpeRatio * Math.sqrt(TRADING_DAYS);
+
+    // 简单的“合理性”过滤：如果年化收益或夏普比率极端，认为受资金流严重干扰
+    const MAX_REASONABLE_ANNUAL_RETURN = 1.5; // 150%
+    const MAX_REASONABLE_ANNUAL_SHARPE = 5;
+
+    if (annualReturn > MAX_REASONABLE_ANNUAL_RETURN || Math.abs(annualSharpe) > MAX_REASONABLE_ANNUAL_SHARPE) {
+      return res.json({
+        success: true,
+        data: {
+          message: '历史记录受大额资金流入/流出影响，风险指标严重失真，暂不展示',
+          insufficient: true,
+          suspect: true,
+          period_days: days
+        }
+      });
+    }
+    
+    // 最大回撤（仍然基于总市值序列）
     let maxDrawdown = 0;
     let peak = 0;
     
@@ -211,7 +242,7 @@ router.get('/risk', async (req, res) => {
         peak = snapshot.totalValueUsd;
       }
       
-      const drawdown = (peak - snapshot.totalValueUsd) / peak;
+      const drawdown = peak > 0 ? (peak - snapshot.totalValueUsd) / peak : 0;
       if (drawdown > maxDrawdown) {
         maxDrawdown = drawdown;
       }
@@ -226,10 +257,11 @@ router.get('/risk', async (req, res) => {
         sharpe_ratio: sharpeRatio,
         max_drawdown: maxDrawdown,
         annualized: {
-          return: meanReturn * 365,
-          volatility: volatility * Math.sqrt(365),
-          sharpe_ratio: sharpeRatio * Math.sqrt(365)
+          return: annualReturn,
+          volatility: annualVolatility,
+          sharpe_ratio: annualSharpe
         },
+        insufficient: false,
         timestamp: Date.now()
       }
     });
