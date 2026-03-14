@@ -35,6 +35,16 @@ Portfolio Manager 是一个完整的个人投资组合管理系统，专注于**
 - 最优配比建议
 - 最大回撤分析
 
+### 🔔 价格提醒
+- 设置目标价提醒（涨破/跌破）
+- 每 5 分钟自动检查
+- 触发时发送 Telegram 通知
+
+### 📋 路线图
+- 再平衡计划分阶段管理
+- 执行进度跟踪
+- 分析报告存档
+
 ## 技术栈
 
 ### 后端
@@ -63,7 +73,9 @@ portfolio-manager/
 │   │   │   ├── assets.ts      # 资产管理接口
 │   │   │   ├── prices.ts      # 价格服务接口
 │   │   │   ├── portfolio.ts   # 组合分析接口
-│   │   │   └── rebalance.ts   # 再平衡接口
+│   │   │   ├── rebalance.ts   # 再平衡接口
+│   │   │   ├── alerts.ts      # 价格提醒接口
+│   │   │   └── roadmap.ts     # 路线图接口
 │   │   ├── services/          # 业务服务
 │   │   │   ├── PriceService.ts
 │   │   │   ├── PortfolioService.ts
@@ -88,7 +100,9 @@ portfolio-manager/
 │   │   │   ├── Dashboard.tsx  # 总览页
 │   │   │   ├── Assets.tsx     # 资产管理页
 │   │   │   ├── Rebalance.tsx  # 再平衡页
-│   │   │   └── Analysis.tsx   # 分析页
+│   │   │   ├── Analysis.tsx   # 分析页
+│   │   │   ├── PriceAlerts.tsx # 价格提醒页
+│   │   │   └── Roadmap.tsx    # 路线图页
 │   │   ├── hooks/
 │   │   │   └── useApi.ts      # API 请求封装
 │   │   ├── utils/
@@ -185,6 +199,24 @@ pm2 start npm --name "portfolio-frontend" -- run preview
 - `GET /api/rebalance/suggest` - 获取建议
 - `POST /api/rebalance/execute` - 记录执行
 
+### 价格提醒
+- `GET /api/alerts` - 获取所有提醒
+- `GET /api/alerts/with-prices` - 获取提醒及当前价格
+- `POST /api/alerts` - 创建提醒
+- `PUT /api/alerts/:id` - 更新提醒
+- `DELETE /api/alerts/:id` - 删除提醒
+- `POST /api/alerts/check` - 手动触发检查
+
+### 路线图
+- `GET /api/roadmap` - 获取路线图计划
+- `POST /api/roadmap` - 添加计划
+- `PUT /api/roadmap/:id` - 更新计划状态
+- `DELETE /api/roadmap/:id` - 删除计划
+- `GET /api/advisor/reports` - 获取分析报告
+
+### 通知测试
+- `POST /api/notify/test` - 测试 Telegram 通知
+
 ### 其他
 - `GET /api/exchange-rate` - 获取汇率
 - `GET /api/health` - 健康检查
@@ -199,6 +231,7 @@ pm2 start npm --name "portfolio-frontend" -- run preview
 - **每天00:00**: 生成组合快照
 - **每天08:00**: 检查再平衡偏离度，超阈值发送提醒
 - **每天21:00**: 发送每日报告
+- **每5分钟**: 检查价格提醒，触发时发送 Telegram 通知
 
 ## 数据库结构
 
@@ -210,6 +243,9 @@ pm2 start npm --name "portfolio-frontend" -- run preview
 - `portfolio_snapshots` - 组合快照
 - `rebalance_config` - 再平衡配置
 - `rebalance_history` - 再平衡历史
+- `rebalance_roadmap` - 再平衡路线图
+- `price_alerts` - 价格提醒
+- `advisor_reports` - 分析报告
 - `exchange_rates` - 汇率缓存
 
 ## 通知功能
@@ -220,11 +256,13 @@ pm2 start npm --name "portfolio-frontend" -- run preview
 - 每日投资报告
 - 价格更新失败警告
 - 系统状态报告
+- **价格提醒**：达到目标价时发送 Telegram 通知
 
-配置环境变量：
+配置环境变量（`backend/.env`）：
 ```bash
 TELEGRAM_BOT_TOKEN=your-bot-token  # 可选
 TELEGRAM_CHAT_ID=-5170247327       # 消息中心群
+BINANCE_API_URL=http://localhost:4001  # Binance 数据服务，默认 localhost:4001
 ```
 
 ## 配置说明

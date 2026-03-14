@@ -99,33 +99,33 @@ export default function Analysis() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-5">
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">投资分析</h1>
-          <p className="text-muted-foreground">深度分析您的投资组合表现和风险</p>
+          <h1 className="text-xl font-bold text-foreground">投资分析</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">深度分析您的投资组合表现和风险</p>
         </div>
         
         <button
           onClick={loadAnalysisData}
           disabled={analysisLoading}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 text-sm font-medium"
         >
-          <BarChart3 className={`w-4 h-4 ${analysisLoading ? 'animate-pulse' : ''}`} />
+          <BarChart3 className={`w-4 h-4 ${analysisLoading ? 'animate-pulse' : ''}`} strokeWidth={1.75} />
           <span>重新分析</span>
         </button>
       </div>
 
       {/* 错误信息 */}
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <p className="text-destructive">{error}</p>
+        <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-4">
+          <p className="text-destructive text-sm">{error}</p>
         </div>
       )}
 
       {/* 相关性矩阵 */}
-      <div className="bg-card rounded-lg border border-border p-6">
+      <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 p-5">
         <div className="flex items-center space-x-2 mb-4">
           <Activity className="w-5 h-5 text-primary" />
           <h3 className="text-lg font-semibold text-foreground">资产相关性矩阵</h3>
@@ -133,7 +133,7 @@ export default function Analysis() {
         
         {correlation ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-secondary/20 rounded-lg p-4">
+            <div className="bg-secondary/30 rounded-xl p-4 ring-1 ring-border/30">
               <div className="text-center">
                 <div className={`text-2xl font-bold ${getCorrelationColor(correlation.crypto_stock)}`}>
                   {(correlation.crypto_stock * 100).toFixed(1)}%
@@ -145,7 +145,7 @@ export default function Analysis() {
               </div>
             </div>
 
-            <div className="bg-secondary/20 rounded-lg p-4">
+            <div className="bg-secondary/30 rounded-xl p-4 ring-1 ring-border/30">
               <div className="text-center">
                 <div className={`text-2xl font-bold ${getCorrelationColor(correlation.crypto_gold)}`}>
                   {(correlation.crypto_gold * 100).toFixed(1)}%
@@ -157,7 +157,7 @@ export default function Analysis() {
               </div>
             </div>
 
-            <div className="bg-secondary/20 rounded-lg p-4">
+            <div className="bg-secondary/30 rounded-xl p-4 ring-1 ring-border/30">
               <div className="text-center">
                 <div className={`text-2xl font-bold ${getCorrelationColor(correlation.stock_gold)}`}>
                   {(correlation.stock_gold * 100).toFixed(1)}%
@@ -184,7 +184,7 @@ export default function Analysis() {
       {/* 风险指标和最优配比 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 风险指标 */}
-        <div className="bg-card rounded-lg border border-border p-6">
+        <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 p-5">
           <div className="flex items-center space-x-2 mb-4">
             <TrendingUp className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">风险指标</h3>
@@ -196,29 +196,29 @@ export default function Analysis() {
                 <div>
                   <div className="text-sm text-muted-foreground">年化收益率</div>
                   <div className={`text-xl font-bold ${
-                    riskMetrics.annualized.return > 0 ? 'text-green-500' : 'text-red-500'
+                    riskMetrics.annualized.return > 0 ? 'text-emerald-400' : 'text-rose-400'
                   }`}>
                     {formatPercent(riskMetrics.annualized.return * 100)}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">年化波动率</div>
-                  <div className="text-xl font-bold text-orange-500">
+                  <div className="text-xl font-bold text-amber-400">
                     {formatPercent(riskMetrics.annualized.volatility * 100)}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">夏普比率</div>
                   <div className={`text-xl font-bold ${
-                    riskMetrics.annualized.sharpe_ratio > 1 ? 'text-green-500' : 
-                    riskMetrics.annualized.sharpe_ratio > 0 ? 'text-yellow-500' : 'text-red-500'
+                    riskMetrics.annualized.sharpe_ratio > 1 ? 'text-emerald-400' : 
+                    riskMetrics.annualized.sharpe_ratio > 0 ? 'text-amber-400' : 'text-rose-400'
                   }`}>
                     {riskMetrics.annualized.sharpe_ratio.toFixed(2)}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">最大回撤</div>
-                  <div className="text-xl font-bold text-red-500">
+                  <div className="text-xl font-bold text-rose-400">
                     {formatPercent(riskMetrics.max_drawdown * 100)}
                   </div>
                 </div>
@@ -242,7 +242,7 @@ export default function Analysis() {
         </div>
 
         {/* 最优配比建议 */}
-        <div className="bg-card rounded-lg border border-border p-6">
+        <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 p-5">
           <div className="flex items-center space-x-2 mb-4">
             <Target className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">最优配比建议</h3>

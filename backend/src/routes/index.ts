@@ -4,6 +4,7 @@ import pricesRouter from './prices';
 import portfolioRouter from './portfolio';
 import rebalanceRouter from './rebalance';
 import roadmapRouter from './roadmap';
+import alertsRouter from './alerts';
 
 const router = express.Router();
 
@@ -21,7 +22,21 @@ router.use('/assets', assetsRouter);
 router.use('/prices', pricesRouter);
 router.use('/portfolio', portfolioRouter);
 router.use('/rebalance', rebalanceRouter);
+router.use('/alerts', alertsRouter);
 router.use('/', roadmapRouter);
+
+// 测试 Telegram 消息发送
+router.post('/notify/test', async (req, res) => {
+  try {
+    const { NotificationService } = await import('../services/NotificationService');
+    const notificationService = new NotificationService();
+    const ok = await notificationService.testConnection();
+    res.json({ success: ok, message: ok ? '测试消息已发送' : '发送失败，请检查 TELEGRAM_BOT_TOKEN 和 TELEGRAM_CHAT_ID' });
+  } catch (error) {
+    console.error('测试消息发送失败:', error);
+    res.status(500).json({ success: false, error: '发送失败' });
+  }
+});
 
 // 汇率API（简单实现）
 router.get('/exchange-rate', async (req, res) => {

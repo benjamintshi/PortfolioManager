@@ -102,33 +102,33 @@ export default function Rebalance() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-5">
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">再平衡管理</h1>
-          <p className="text-muted-foreground">监控和调整您的投资组合配置</p>
+          <h1 className="text-xl font-bold text-foreground">再平衡管理</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">监控和调整您的投资组合配置</p>
         </div>
         
         <button
           onClick={() => setShowSettings(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-4 h-4" strokeWidth={1.75} />
           <span>配置</span>
         </button>
       </div>
 
       {/* 错误信息 */}
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <p className="text-destructive">{error}</p>
+        <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-4">
+          <p className="text-destructive text-sm">{error}</p>
         </div>
       )}
 
       {/* 当前配置 */}
       {config && (
-        <div className="bg-card rounded-lg border border-border p-6">
+        <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 p-5">
           <h3 className="text-lg font-semibold text-foreground mb-4">目标配置</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center">
@@ -154,14 +154,14 @@ export default function Rebalance() {
       {/* 再平衡状态 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 状态卡片 */}
-        <div className="bg-card rounded-lg border border-border p-6">
+        <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-foreground">再平衡状态</h3>
             {analysis && (
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ring-1 ${
                 analysis.needsRebalancing 
-                  ? 'bg-yellow-500/10 text-yellow-500' 
-                  : 'bg-green-500/10 text-green-500'
+                  ? 'bg-amber-500/10 text-amber-400 ring-amber-500/20' 
+                  : 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
               }`}>
                 {analysis.needsRebalancing ? (
                   <AlertTriangle className="w-4 h-4" />
@@ -194,7 +194,7 @@ export default function Rebalance() {
               {analysis.needsRebalancing && (
                 <button
                   onClick={handleExecute}
-                  className="w-full mt-4 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors"
+                  className="w-full mt-4 px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors font-medium"
                 >
                   记录执行再平衡
                 </button>
@@ -204,7 +204,7 @@ export default function Rebalance() {
         </div>
 
         {/* 具体建议 */}
-        <div className="bg-card rounded-lg border border-border p-6">
+        <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 p-5">
           <h3 className="text-lg font-semibold text-foreground mb-4">具体建议</h3>
           
           {analysis?.suggestions && analysis.suggestions.length > 0 ? (
@@ -273,8 +273,8 @@ export default function Rebalance() {
 
       {/* 配置模态框 */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg border border-border p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-xl border border-border/60 p-6 w-full max-w-md ring-1 ring-border/40">
             <h3 className="text-lg font-semibold text-foreground mb-4">配置目标配比</h3>
             
             <div className="space-y-4">

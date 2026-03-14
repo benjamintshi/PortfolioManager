@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle, Clock, AlertTriangle, ArrowRight, RefreshCw, FileText, Plus, X, Save } from 'lucide-react'
-import { useApi } from '@/hooks/useApi'
-
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:6002/api'
+import { useApi, roadmapApi } from '@/hooks/useApi'
+import { getCategoryColor } from '@/utils/format'
 
 interface RoadmapItem {
   id: number
@@ -32,21 +31,18 @@ interface AdvisorReport {
 }
 
 const priorityConfig = {
-  high: { label: '高', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30' },
-  medium: { label: '中', color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30' },
-  low: { label: '低', color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' },
+  high: { label: '高', color: 'text-rose-400', bg: 'bg-rose-500/10 ring-rose-500/20' },
+  medium: { label: '中', color: 'text-amber-400', bg: 'bg-amber-500/10 ring-amber-500/20' },
+  low: { label: '低', color: 'text-emerald-400', bg: 'bg-emerald-500/10 ring-emerald-500/20' },
 }
 
 const statusConfig = {
   pending: { label: '待执行', icon: Clock, color: 'text-muted-foreground' },
-  in_progress: { label: '执行中', icon: ArrowRight, color: 'text-blue-400' },
-  done: { label: '已完成', icon: CheckCircle, color: 'text-green-400' },
-  skipped: { label: '已跳过', icon: AlertTriangle, color: 'text-yellow-400' },
+  in_progress: { label: '执行中', icon: ArrowRight, color: 'text-primary' },
+  done: { label: '已完成', icon: CheckCircle, color: 'text-emerald-400' },
+  skipped: { label: '已跳过', icon: AlertTriangle, color: 'text-amber-400' },
 }
 
-const categoryEmoji: Record<string, string> = {
-  crypto: '🪙', stock: '📈', gold: '🏆', cash: '💵',
-}
 
 export default function Roadmap() {
   const [items, setItems] = useState<RoadmapItem[]>([])
@@ -59,53 +55,30 @@ export default function Roadmap() {
   const { loading, execute } = useApi()
 
   const loadData = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/roadmap`)
-      const data = await res.json()
-      if (data.success) {
-        setItems(data.data.items)
-        setGrouped(data.data.grouped)
-      }
-      
-      const repRes = await fetch(`${API_BASE}/advisor/reports?limit=5`)
-      const repData = await repRes.json()
-      if (repData.success) setReports(repData.data)
-    } catch (e) {
-      console.error('加载失败:', e)
+    const roadmap = await execute(() => roadmapApi.getRoadmap())
+    if (roadmap?.items) {
+      setItems(roadmap.items)
+      setGrouped(roadmap.grouped || {})
     }
+    const reportsData = await execute(() => roadmapApi.getAdvisorReports(5))
+    if (Array.isArray(reportsData)) setReports(reportsData)
   }
 
   useEffect(() => { loadData() }, [])
 
   const updateStatus = async (id: number, status: string, notes?: string) => {
-    try {
-      await fetch(`${API_BASE}/roadmap/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, execution_notes: notes }),
-      })
-      setSelectedItem(null)
-      setExecutionNote('')
-      await loadData()
-    } catch (e) {
-      console.error('更新失败:', e)
-    }
+    await execute(() => roadmapApi.updateItem(id, { status, execution_notes: notes }))
+    setSelectedItem(null)
+    setExecutionNote('')
+    await loadData()
   }
 
   const addItem = async () => {
     if (!newItem.action) return
-    try {
-      await fetch(`${API_BASE}/roadmap`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newItem),
-      })
-      setShowAddForm(false)
-      setNewItem({ phase: '短期(1个月)', priority: 'medium', action: '', category: '', reason: '', deadline: '' })
-      await loadData()
-    } catch (e) {
-      console.error('添加失败:', e)
-    }
+    await execute(() => roadmapApi.addItem(newItem))
+    setShowAddForm(false)
+    setNewItem({ phase: '短期(1个月)', priority: 'medium', action: '', category: '', reason: '', deadline: '' })
+    await loadData()
   }
 
   const stats = {
@@ -116,41 +89,41 @@ export default function Roadmap() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-5">
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">📋 资产配置路线图</h1>
-          <p className="text-muted-foreground">跟踪再平衡计划执行进度</p>
+          <h1 className="text-xl font-bold text-foreground">资产配置路线图</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">跟踪再平衡计划执行进度</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <button onClick={loadData} className="flex items-center space-x-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80">
-            <RefreshCw className="w-4 h-4" /><span>刷新</span>
+        <div className="flex items-center gap-2">
+          <button onClick={loadData} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/60 text-secondary-foreground hover:bg-secondary/80 text-sm font-medium">
+            <RefreshCw className="w-4 h-4" strokeWidth={1.75} /><span>刷新</span>
           </button>
-          <button onClick={() => setShowAddForm(true)} className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-            <Plus className="w-4 h-4" /><span>添加计划</span>
+          <button onClick={() => setShowAddForm(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium">
+            <Plus className="w-4 h-4" strokeWidth={1.75} /><span>添加计划</span>
           </button>
         </div>
       </div>
 
       {/* 进度概览 */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-card p-4 rounded-lg border border-border">
-          <div className="text-sm text-muted-foreground">总计划</div>
-          <div className="text-2xl font-bold text-foreground">{stats.total}</div>
+        <div className="bg-card/80 p-4 rounded-xl border border-border/60 ring-1 ring-border/20">
+          <div className="text-sm text-muted-foreground font-medium">总计划</div>
+          <div className="text-xl font-bold text-foreground mt-1">{stats.total}</div>
         </div>
-        <div className="bg-card p-4 rounded-lg border border-border">
-          <div className="text-sm text-muted-foreground">已完成</div>
-          <div className="text-2xl font-bold text-green-400">{stats.done}</div>
+        <div className="bg-card/80 p-4 rounded-xl border border-border/60 ring-1 ring-border/20">
+          <div className="text-sm text-muted-foreground font-medium">已完成</div>
+          <div className="text-xl font-bold text-emerald-400 mt-1">{stats.done}</div>
         </div>
-        <div className="bg-card p-4 rounded-lg border border-border">
-          <div className="text-sm text-muted-foreground">待执行</div>
-          <div className="text-2xl font-bold text-yellow-400">{stats.pending}</div>
+        <div className="bg-card/80 p-4 rounded-xl border border-border/60 ring-1 ring-border/20">
+          <div className="text-sm text-muted-foreground font-medium">待执行</div>
+          <div className="text-xl font-bold text-amber-400 mt-1">{stats.pending}</div>
         </div>
-        <div className="bg-card p-4 rounded-lg border border-border">
-          <div className="text-sm text-muted-foreground">完成率</div>
-          <div className="text-2xl font-bold text-primary">{stats.progress}%</div>
-          <div className="mt-2 h-2 bg-secondary rounded-full overflow-hidden">
+        <div className="bg-card/80 p-4 rounded-xl border border-border/60 ring-1 ring-border/20">
+          <div className="text-sm text-muted-foreground font-medium">完成率</div>
+          <div className="text-xl font-bold text-primary mt-1">{stats.progress}%</div>
+          <div className="mt-2 h-1.5 bg-secondary/60 rounded-full overflow-hidden">
             <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${stats.progress}%` }} />
           </div>
         </div>
@@ -158,8 +131,8 @@ export default function Roadmap() {
 
       {/* 按阶段展示 */}
       {Object.entries(grouped).map(([phase, phaseItems]) => (
-        <div key={phase} className="bg-card rounded-lg border border-border overflow-hidden">
-          <div className="px-6 py-4 border-b border-border bg-secondary/30">
+        <div key={phase} className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/60 bg-secondary/30">
             <h2 className="text-lg font-semibold text-foreground">{phase}</h2>
             <p className="text-sm text-muted-foreground">
               {phaseItems.filter(i => i.status === 'done').length}/{phaseItems.length} 完成
@@ -174,14 +147,16 @@ export default function Roadmap() {
               return (
                 <div key={item.id} className={`px-6 py-4 flex items-start justify-between ${item.status === 'done' ? 'opacity-60' : ''}`}>
                   <div className="flex items-start space-x-4 flex-1">
-                    <StatusIcon className={`w-5 h-5 mt-0.5 ${statusCfg.color}`} />
+                    <StatusIcon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${statusCfg.color}`} strokeWidth={1.75} />
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
-                        <span className="text-lg">{categoryEmoji[item.category] || '📌'}</span>
+                        {item.category && (
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: getCategoryColor(item.category) }} />
+                        )}
                         <span className={`font-medium ${item.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                           {item.action}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${priorityCfg.bg}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-lg ring-1 ${priorityCfg.bg}`}>
                           {priorityCfg.label}优先
                         </span>
                       </div>
@@ -192,7 +167,7 @@ export default function Roadmap() {
                         </p>
                       )}
                       {item.execution_notes && (
-                        <p className="text-sm text-green-400 mt-1">📝 {item.execution_notes}</p>
+                        <p className="text-sm text-emerald-400 mt-1">{item.execution_notes}</p>
                       )}
                       {item.deadline && (
                         <p className="text-xs text-muted-foreground mt-1">截止: {item.deadline}</p>
@@ -204,12 +179,12 @@ export default function Roadmap() {
                     <div className="flex items-center space-x-2 ml-4">
                       {item.status === 'pending' && (
                         <button onClick={() => updateStatus(item.id, 'in_progress')}
-                          className="px-3 py-1 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-md hover:bg-blue-500/20">
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/15 text-primary ring-1 ring-primary/20 hover:bg-primary/25">
                           开始
                         </button>
                       )}
                       <button onClick={() => { setSelectedItem(item); setExecutionNote('') }}
-                        className="px-3 py-1 text-xs bg-green-500/10 text-green-400 border border-green-500/30 rounded-md hover:bg-green-500/20">
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20 hover:bg-emerald-500/25">
                         完成
                       </button>
                     </div>
@@ -223,8 +198,8 @@ export default function Roadmap() {
 
       {/* 最近分析报告 */}
       {reports.length > 0 && (
-        <div className="bg-card rounded-lg border border-border overflow-hidden">
-          <div className="px-6 py-4 border-b border-border">
+        <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/60">
             <h2 className="text-lg font-semibold text-foreground flex items-center space-x-2">
               <FileText className="w-5 h-5" /><span>分析报告</span>
             </h2>
@@ -248,8 +223,8 @@ export default function Roadmap() {
 
       {/* 完成确认弹窗 */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg border border-border p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-xl border border-border/60 p-6 w-full max-w-md ring-1 ring-border/40">
             <h3 className="text-lg font-semibold text-foreground mb-2">标记完成</h3>
             <p className="text-sm text-muted-foreground mb-4">{selectedItem.action}</p>
             <textarea value={executionNote} onChange={(e) => setExecutionNote(e.target.value)}
@@ -266,8 +241,8 @@ export default function Roadmap() {
 
       {/* 添加计划弹窗 */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg border border-border p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-xl border border-border/60 p-6 w-full max-w-md ring-1 ring-border/40">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-foreground">添加计划</h3>
               <button onClick={() => setShowAddForm(false)}><X className="w-5 h-5 text-muted-foreground" /></button>

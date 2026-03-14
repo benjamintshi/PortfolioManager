@@ -218,8 +218,8 @@ export default function Assets() {
 
   // 表单渲染
   const renderForm = (isEdit: boolean) => (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-card rounded-lg border border-border p-6 w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-card rounded-xl border border-border/60 p-6 w-full max-w-lg ring-1 ring-border/40">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">{isEdit ? '编辑资产' : '添加资产'}</h3>
           <button onClick={() => { isEdit ? setShowEditForm(false) : setShowAddForm(false); setFormError('') }}>
@@ -236,10 +236,10 @@ export default function Assets() {
             <label className="block text-sm font-medium text-foreground mb-1">类别</label>
             <select value={form.category} onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value as any }))} disabled={isEdit}
               className="w-full px-3 py-2 bg-background border border-border rounded-md disabled:opacity-50">
-              <option value="crypto">🪙 加密货币</option>
-              <option value="stock">📈 股票基金</option>
-              <option value="gold">🏆 黄金贵金属</option>
-              <option value="cash">💵 现金</option>
+              <option value="crypto">加密货币</option>
+              <option value="stock">股票基金</option>
+              <option value="gold">黄金贵金属</option>
+              <option value="cash">现金</option>
             </select>
           </div>
 
@@ -309,39 +309,39 @@ export default function Assets() {
   )
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-5">
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">资产管理</h1>
-          <p className="text-muted-foreground">管理您的投资组合资产</p>
+          <h1 className="text-xl font-bold text-foreground">资产管理</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">管理您的投资组合资产</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2">
           <button onClick={loadData} disabled={loading}
-            className="flex items-center space-x-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span>刷新</span>
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/60 text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 text-sm font-medium">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.75} /><span>刷新</span>
           </button>
           <button onClick={() => { setForm({ ...emptyForm }); setFormError(''); setShowAddForm(true) }}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
-            <Plus className="w-4 h-4" /><span>添加资产</span>
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium">
+            <Plus className="w-4 h-4" strokeWidth={1.75} /><span>添加资产</span>
           </button>
         </div>
       </div>
 
       {/* 过滤器 */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
           <input type="text" placeholder="搜索资产名称或代码..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent" />
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-secondary/40 border border-border/60 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 text-sm" />
         </div>
         <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
-          className="px-3 py-2 bg-background border border-border rounded-md">
+          className="px-3 py-2 rounded-xl bg-secondary/40 border border-border/60 text-sm font-medium">
           <option value="all">全部类别</option>
-          <option value="crypto">🪙 加密货币</option>
-          <option value="stock">📈 股票基金</option>
-          <option value="gold">🏆 黄金</option>
-          <option value="cash">💵 现金</option>
+          <option value="crypto">加密货币</option>
+          <option value="stock">股票基金</option>
+          <option value="gold">黄金</option>
+          <option value="cash">现金</option>
         </select>
       </div>
 
@@ -352,7 +352,7 @@ export default function Assets() {
       )}
 
       {/* 合并资产列表 */}
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
+      <div className="bg-card/80 rounded-xl border border-border/60 ring-1 ring-border/20 overflow-hidden">
         {loading && !mergedAssets.length ? (
           <div className="p-8 text-center">
             <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4" />

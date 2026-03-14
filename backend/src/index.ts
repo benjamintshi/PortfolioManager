@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cron from 'node-cron';
@@ -8,6 +9,7 @@ import { PriceService } from './services/PriceService';
 import { PortfolioService } from './services/PortfolioService';
 import { RebalanceService } from './services/RebalanceService';
 import { NotificationService } from './services/NotificationService';
+import { PriceAlertService } from './services/PriceAlertService';
 
 const app = express();
 const port = process.env.PORT || 6002;
@@ -83,11 +85,14 @@ function initServices() {
 
 // 定时任务
 function setupCronJobs() {
-  // 每5分钟更新crypto价格
+  // 每5分钟更新crypto价格，并检查价格提醒
   cron.schedule('*/5 * * * *', async () => {
     try {
       logger.debug('开始更新加密货币价格');
       await priceService.updateAllPrices();
+      const alertService = new PriceAlertService();
+      const { triggered } = await alertService.checkAndNotify();
+      if (triggered > 0) logger.info(`价格提醒: 触发 ${triggered} 条`);
     } catch (error) {
       logger.error('定时更新加密货币价格失败:', error);
     }

@@ -13,7 +13,7 @@ export interface PriceData {
 }
 
 export class PriceService {
-  private binanceApiUrl = 'http://localhost:4001'; // binance-data-infra
+  private binanceApiUrl = process.env.BINANCE_API_URL || 'http://localhost:4001';
 
   /**
    * 获取加密货币价格（从binance-data-infra获取）

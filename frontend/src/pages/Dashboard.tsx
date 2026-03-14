@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, Minus, RefreshCw, DollarSign, Target } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Wallet, Receipt, Percent } from 'lucide-react'
 import { portfolioApi, exchangeRateApi, useApi } from '@/hooks/useApi'
 import { formatCurrency, formatPercent, getProfitColorClass, getCategoryName, getCategoryColor } from '@/utils/format'
 import PieChart from '@/components/PieChart'
@@ -154,113 +154,112 @@ export default function Dashboard() {
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">投资组合总览</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl font-bold text-foreground">投资组合总览</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             最后更新: {new Date(summary.lastUpdated).toLocaleString('zh-CN')}
           </p>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={toggleCurrency}
-            className="flex items-center space-x-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/60 text-secondary-foreground hover:bg-secondary/80 transition-colors text-sm font-medium"
           >
-            <DollarSign className="w-4 h-4" />
+            <Wallet className="w-4 h-4" strokeWidth={1.75} />
             <span>{currencyMode}</span>
           </button>
-          
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="flex items-center space-x-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 text-sm font-medium"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
             <span>刷新</span>
           </button>
         </div>
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* 总资产 */}
-        <div className="bg-card p-6 rounded-lg border border-border">
-          <div className="flex items-center justify-between">
+        <div className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20 hover:ring-primary/20 transition-all">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">总资产</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">
+              <p className="text-sm text-muted-foreground font-medium">总资产</p>
+              <p className="text-xl font-bold text-foreground tabular-nums mt-1">
                 {formatCurrency(totalValue, currencyMode)}
               </p>
             </div>
-            <div className="p-3 bg-blue-500/10 rounded-lg">
-              <DollarSign className="w-6 h-6 text-blue-500" />
+            <div className="p-2.5 rounded-xl bg-primary/10 ring-1 ring-primary/15">
+              <Wallet className="w-5 h-5 text-primary" strokeWidth={1.75} />
             </div>
           </div>
         </div>
 
         {/* 总成本 */}
-        <div className="bg-card p-6 rounded-lg border border-border">
-          <div className="flex items-center justify-between">
+        <div className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20 hover:ring-primary/20 transition-all">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">总成本</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">
+              <p className="text-sm text-muted-foreground font-medium">总成本</p>
+              <p className="text-xl font-bold text-foreground tabular-nums mt-1">
                 {formatCurrency(totalCost, currencyMode)}
               </p>
             </div>
-            <div className="p-3 bg-gray-500/10 rounded-lg">
-              <Target className="w-6 h-6 text-gray-500" />
+            <div className="p-2.5 rounded-xl bg-muted ring-1 ring-border/40">
+              <Receipt className="w-5 h-5 text-muted-foreground" strokeWidth={1.75} />
             </div>
           </div>
         </div>
 
         {/* 总盈亏 */}
-        <div className="bg-card p-6 rounded-lg border border-border">
-          <div className="flex items-center justify-between">
+        <div className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20 hover:ring-primary/20 transition-all">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">总盈亏</p>
-              <p className={`text-2xl font-bold tabular-nums ${getProfitColorClass(summary.totalProfitUsd)}`}>
+              <p className="text-sm text-muted-foreground font-medium">总盈亏</p>
+              <p className={`text-xl font-bold tabular-nums mt-1 ${getProfitColorClass(summary.totalProfitUsd)}`}>
                 {formatCurrency(totalProfit, currencyMode, true)}
               </p>
             </div>
-            <div className={`p-3 rounded-lg ${
+            <div className={`p-2.5 rounded-xl ring-1 ${
               summary.totalProfitUsd > 0 
-                ? 'bg-green-500/10' 
+                ? 'bg-emerald-500/10 ring-emerald-500/20' 
                 : summary.totalProfitUsd < 0 
-                  ? 'bg-red-500/10' 
-                  : 'bg-gray-500/10'
+                  ? 'bg-rose-500/10 ring-rose-500/20' 
+                  : 'bg-muted ring-border/40'
             }`}>
               {summary.totalProfitUsd > 0 ? (
-                <TrendingUp className="w-6 h-6 text-green-500" />
+                <TrendingUp className="w-5 h-5 text-emerald-400" strokeWidth={1.75} />
               ) : summary.totalProfitUsd < 0 ? (
-                <TrendingDown className="w-6 h-6 text-red-500" />
+                <TrendingDown className="w-5 h-5 text-rose-400" strokeWidth={1.75} />
               ) : (
-                <Minus className="w-6 h-6 text-gray-500" />
+                <Minus className="w-5 h-5 text-muted-foreground" strokeWidth={1.75} />
               )}
             </div>
           </div>
         </div>
 
         {/* 盈亏比例 */}
-        <div className="bg-card p-6 rounded-lg border border-border">
-          <div className="flex items-center justify-between">
+        <div className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20 hover:ring-primary/20 transition-all">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">盈亏比例</p>
-              <p className={`text-2xl font-bold tabular-nums ${getProfitColorClass(summary.totalProfitUsd)}`}>
+              <p className="text-sm text-muted-foreground font-medium">盈亏比例</p>
+              <p className={`text-xl font-bold tabular-nums mt-1 ${getProfitColorClass(summary.totalProfitUsd)}`}>
                 {formatPercent(summary.totalProfitPercent)}
               </p>
             </div>
-            <div className={`p-3 rounded-lg ${
+            <div className={`p-2.5 rounded-xl ring-1 ${
               summary.totalProfitPercent > 0 
-                ? 'bg-green-500/10' 
+                ? 'bg-emerald-500/10 ring-emerald-500/20' 
                 : summary.totalProfitPercent < 0 
-                  ? 'bg-red-500/10' 
-                  : 'bg-gray-500/10'
+                  ? 'bg-rose-500/10 ring-rose-500/20' 
+                  : 'bg-muted ring-border/40'
             }`}>
               {summary.totalProfitPercent > 0 ? (
-                <TrendingUp className="w-6 h-6 text-green-500" />
+                <Percent className="w-5 h-5 text-emerald-400" strokeWidth={1.75} />
               ) : summary.totalProfitPercent < 0 ? (
-                <TrendingDown className="w-6 h-6 text-red-500" />
+                <TrendingDown className="w-5 h-5 text-rose-400" strokeWidth={1.75} />
               ) : (
-                <Minus className="w-6 h-6 text-gray-500" />
+                <Minus className="w-5 h-5 text-muted-foreground" strokeWidth={1.75} />
               )}
             </div>
           </div>
@@ -268,10 +267,10 @@ export default function Dashboard() {
       </div>
 
       {/* 图表区域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 资产配置饼图 */}
-        <div className="bg-card p-6 rounded-lg border border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-4">资产配置</h3>
+        <div className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20">
+          <h3 className="text-base font-semibold text-foreground mb-4">资产配置</h3>
           {pieData.length > 0 ? (
             <PieChart data={pieData} />
           ) : (
@@ -282,13 +281,13 @@ export default function Dashboard() {
         </div>
 
         {/* 组合净值历史 */}
-        <div className="bg-card p-6 rounded-lg border border-border">
+        <div className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">组合净值历史</h3>
+            <h3 className="text-base font-semibold text-foreground">组合净值历史</h3>
             <select
               value={historyDays}
               onChange={(e) => setHistoryDays(Number(e.target.value))}
-              className="px-3 py-1 bg-secondary text-secondary-foreground border border-border rounded-md text-sm"
+              className="px-3 py-1.5 rounded-lg bg-secondary/60 text-secondary-foreground border border-border/60 text-sm font-medium"
             >
               <option value={7}>7天</option>
               <option value={30}>30天</option>
@@ -307,7 +306,7 @@ export default function Dashboard() {
       </div>
 
       {/* 资产类别详情 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {Object.entries(summary.categories).map(([key, category]) => {
           if (category.valueUsd === 0) return null
           
@@ -317,15 +316,15 @@ export default function Dashboard() {
           const profit = getDisplayValue(category.profitUsd)
           
           return (
-            <div key={key} className="bg-card p-6 rounded-lg border border-border">
+            <div key={key} className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-foreground">
+                <h4 className="text-base font-semibold text-foreground">
                   {getCategoryName(categoryKey)}
                 </h4>
                 <div 
-                  className="w-4 h-4 rounded-full"
+                  className="w-3 h-3 rounded-full ring-2 ring-white/10"
                   style={{ backgroundColor: getCategoryColor(categoryKey) }}
-                ></div>
+                />
               </div>
               
               <div className="space-y-3">

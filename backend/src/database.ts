@@ -129,6 +129,41 @@ export function initDatabase() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS price_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold')),
+      direction TEXT NOT NULL CHECK(direction IN ('buy', 'sell')),
+      trigger_price REAL NOT NULL,
+      currency TEXT DEFAULT 'USD',
+      enabled INTEGER DEFAULT 1,
+      cooldown_minutes INTEGER DEFAULT 60,
+      last_triggered_at INTEGER,
+      notes TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+    )
+  `);
+
+  const alertCount = db.prepare('SELECT COUNT(*) as count FROM price_alerts').get() as { count: number };
+  if (alertCount.count === 0) {
+    db.prepare(`
+      INSERT INTO price_alerts (symbol, name, category, direction, trigger_price, currency, notes)
+      VALUES 
+        ('ETHUSDT', 'ETH', 'crypto', 'buy', 2150, 'USD', '做T买入，入场$2000–2150'),
+        ('ETHUSDT', 'ETH', 'crypto', 'sell', 2100, 'USD', '做T卖出，出场$2100–2200'),
+        ('SOLUSDT', 'SOL', 'crypto', 'buy', 86, 'USD', '做T买入，入场$83–86'),
+        ('SOLUSDT', 'SOL', 'crypto', 'sell', 89, 'USD', '做T卖出，出场$89–93'),
+        ('ADAUSDT', 'ADA', 'crypto', 'buy', 0.26, 'USD', '做T买入，入场$0.25–0.26'),
+        ('ADAUSDT', 'ADA', 'crypto', 'sell', 0.27, 'USD', '做T卖出，出场$0.27–0.28'),
+        ('BNBUSDT', 'BNB', 'crypto', 'buy', 650, 'USD', '做T买入，入场$640–650'),
+        ('BNBUSDT', 'BNB', 'crypto', 'sell', 660, 'USD', '做T卖出，出场$660–680')
+    `).run();
+    logger.info('插入默认价格提醒');
+  }
+
   logger.info('数据库初始化完成');
 }
 

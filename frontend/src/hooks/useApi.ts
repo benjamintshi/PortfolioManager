@@ -239,6 +239,19 @@ export const rebalanceApi = {
 };
 
 /**
+ * 路线图 API
+ */
+export const roadmapApi = {
+  getRoadmap: () => api.get<ApiResponse>('/roadmap'),
+  addItem: (item: { phase: string; priority: string; action: string; category?: string; target_amount?: number; target_currency?: string; reason?: string; deadline?: string }) =>
+    api.post<ApiResponse>('/roadmap', item),
+  updateItem: (id: number, updates: { status?: string; execution_notes?: string }) =>
+    api.put<ApiResponse>(`/roadmap/${id}`, updates),
+  deleteItem: (id: number) => api.delete<ApiResponse>(`/roadmap/${id}`),
+  getAdvisorReports: (limit?: number) => api.get<ApiResponse>('/advisor/reports', { params: { limit } }),
+};
+
+/**
  * 汇率API
  */
 export const exchangeRateApi = {
@@ -247,11 +260,24 @@ export const exchangeRateApi = {
 };
 
 /**
+ * 价格提醒API
+ */
+export const alertsApi = {
+  getAll: () => api.get<ApiResponse>('/alerts'),
+  getWithPrices: () => api.get<ApiResponse>('/alerts/with-prices'),
+  create: (alert: { symbol: string; name: string; category: string; direction: string; trigger_price: number; currency?: string; enabled?: boolean; cooldown_minutes?: number; notes?: string }) =>
+    api.post<ApiResponse>('/alerts', alert),
+  update: (id: number, updates: any) => api.put<ApiResponse>(`/alerts/${id}`, updates),
+  delete: (id: number) => api.delete<ApiResponse>(`/alerts/${id}`),
+  check: () => api.post<ApiResponse>('/alerts/check'),
+};
+
+/**
  * 系统API
  */
 export const systemApi = {
-  // 健康检查
   health: () => api.get<ApiResponse>('/health'),
+  testNotify: () => api.post<ApiResponse>('/notify/test'),
 };
 
 // 默认导出
