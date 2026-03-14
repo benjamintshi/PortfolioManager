@@ -65,3 +65,4 @@ temp/
 *.tgz
 *.tar.gz
 .cache/
+.cursor/

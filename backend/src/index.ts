@@ -155,6 +155,20 @@ function setupCronJobs() {
     timezone: 'Asia/Shanghai'
   });
 
+  // 每天09:00运行资产管理智能体分析
+  cron.schedule('0 9 * * *', async () => {
+    try {
+      const { AdvisorAgentService } = await import('./services/AdvisorAgentService');
+      const agent = new AdvisorAgentService();
+      const result = await agent.runAnalysis();
+      logger.info(`资产管理智能体: ${result.title} (健康分: ${result.health_score})`);
+    } catch (error) {
+      logger.error('资产管理智能体分析失败:', error);
+    }
+  }, {
+    timezone: 'Asia/Shanghai'
+  });
+
   // 每天21:00发送每日报告
   cron.schedule('0 21 * * *', async () => {
     try {

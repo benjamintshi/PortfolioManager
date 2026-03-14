@@ -252,6 +252,17 @@ export const roadmapApi = {
 };
 
 /**
+ * 资产管理智能体 API
+ */
+export const advisorApi = {
+  runAnalyze: () => api.post<ApiResponse>('/advisor/analyze'),
+  getReports: (limit?: number) => api.get<ApiResponse>('/advisor/reports', { params: { limit } }),
+  getReport: (id: number) => api.get<ApiResponse>(`/advisor/reports/${id}`),
+  submitFeedback: (reportId: number, data: { rating?: number; acted_on?: boolean; notes?: string }) =>
+    api.post<ApiResponse>('/advisor/feedback', { report_id: reportId, ...data }),
+};
+
+/**
  * 汇率API
  */
 export const exchangeRateApi = {

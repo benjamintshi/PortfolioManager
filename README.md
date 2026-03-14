@@ -40,6 +40,11 @@ Portfolio Manager 是一个完整的个人投资组合管理系统，专注于**
 - 每 5 分钟自动检查
 - 触发时发送 Telegram 通知
 
+### 🤖 资产管理大师（智能体）
+- 每日深度分析组合健康度
+- 基于规则的智能分析，零配置开箱即用
+- 用户反馈用于自我进化
+
 ### 📋 路线图
 - 再平衡计划分阶段管理
 - 执行进度跟踪
@@ -214,6 +219,12 @@ pm2 start npm --name "portfolio-frontend" -- run preview
 - `DELETE /api/roadmap/:id` - 删除计划
 - `GET /api/advisor/reports` - 获取分析报告
 
+### 资产管理智能体
+- `POST /api/advisor/analyze` - 触发分析
+- `GET /api/advisor/reports` - 获取报告列表
+- `GET /api/advisor/reports/:id` - 获取单条报告
+- `POST /api/advisor/feedback` - 提交反馈（用于自我进化）
+
 ### 通知测试
 - `POST /api/notify/test` - 测试 Telegram 通知
 
@@ -232,6 +243,7 @@ pm2 start npm --name "portfolio-frontend" -- run preview
 - **每天08:00**: 检查再平衡偏离度，超阈值发送提醒
 - **每天21:00**: 发送每日报告
 - **每5分钟**: 检查价格提醒，触发时发送 Telegram 通知
+- **每天09:00**: 运行资产管理智能体，生成每日分析报告
 
 ## 数据库结构
 

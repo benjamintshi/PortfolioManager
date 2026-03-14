@@ -4,6 +4,7 @@ import {
   Coins,
   Scale,
   LineChart,
+  Sparkles,
   Map,
   Bell
 } from 'lucide-react'
@@ -32,6 +33,12 @@ const navigation = [
     href: '/analysis',
     icon: LineChart,
     description: '深度数据分析'
+  },
+  {
+    name: '资产管理大师',
+    href: '/advisor',
+    icon: Sparkles,
+    description: 'AI 每日分析与优化建议'
   },
   {
     name: '路线图',

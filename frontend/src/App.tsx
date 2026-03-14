@@ -6,6 +6,7 @@ import Rebalance from './pages/Rebalance'
 import Analysis from './pages/Analysis'
 import Roadmap from './pages/Roadmap'
 import PriceAlerts from './pages/PriceAlerts'
+import Advisor from './pages/Advisor'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="assets" element={<Assets />} />
           <Route path="rebalance" element={<Rebalance />} />
           <Route path="analysis" element={<Analysis />} />
+          <Route path="advisor" element={<Advisor />} />
           <Route path="roadmap" element={<Roadmap />} />
           <Route path="alerts" element={<PriceAlerts />} />
         </Route>

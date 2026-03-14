@@ -147,6 +147,55 @@ export function initDatabase() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rebalance_roadmap (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phase TEXT NOT NULL,
+      priority TEXT NOT NULL CHECK(priority IN ('high', 'medium', 'low')),
+      action TEXT NOT NULL,
+      category TEXT,
+      target_amount REAL,
+      target_currency TEXT DEFAULT 'USD',
+      reason TEXT,
+      deadline TEXT,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done', 'skipped')),
+      executed_at INTEGER,
+      execution_notes TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS advisor_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      report_type TEXT NOT NULL DEFAULT 'daily',
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      health_score REAL,
+      suggestions_json TEXT,
+      insights_json TEXT,
+      market_fg REAL,
+      market_vix REAL,
+      total_value_usd REAL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+    )
+  `);
+  try { db.exec('ALTER TABLE advisor_reports ADD COLUMN suggestions_json TEXT'); } catch (_) { /* may exist */ }
+  try { db.exec('ALTER TABLE advisor_reports ADD COLUMN insights_json TEXT'); } catch (_) { /* may exist */ }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS advisor_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      report_id INTEGER NOT NULL,
+      rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+      acted_on INTEGER DEFAULT 0,
+      notes TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      FOREIGN KEY (report_id) REFERENCES advisor_reports(id)
+    )
+  `);
+
   const alertCount = db.prepare('SELECT COUNT(*) as count FROM price_alerts').get() as { count: number };
   if (alertCount.count === 0) {
     db.prepare(`
