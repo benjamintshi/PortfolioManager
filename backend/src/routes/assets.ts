@@ -1,6 +1,6 @@
 import express from 'express';
 import { PortfolioService } from '../services/PortfolioService';
-import { db } from '../database';
+import { db, ASSET_CATEGORIES } from '../database';
 import { logger } from '../lib/logger';
 
 const router = express.Router();
@@ -38,7 +38,7 @@ router.post('/', async (req, res) => {
     }
     
     // 验证类别（支持现金）
-    if (!['crypto', 'stock', 'gold', 'cash'].includes(category)) {
+    if (!(ASSET_CATEGORIES as readonly string[]).includes(category)) {
       return res.status(400).json({
         success: false,
         error: '无效的资产类别'
@@ -113,7 +113,7 @@ router.put('/:id', async (req, res) => {
             });
           }
           updateData[key] = numValue;
-        } else if (key === 'category' && !['crypto', 'stock', 'gold', 'cash'].includes(value as string)) {
+        } else if (key === 'category' && !(ASSET_CATEGORIES as readonly string[]).includes(value as string)) {
           return res.status(400).json({
             success: false,
             error: '无效的资产类别'

@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { 
+import {
   LayoutDashboard,
   Coins,
   Scale,
   LineChart,
-  Sparkles,
   Map,
-  Bell
+  ClipboardList,
+  CalendarDays
 } from 'lucide-react'
 
 const navigation = [
@@ -32,13 +32,7 @@ const navigation = [
     name: '分析报告',
     href: '/analysis',
     icon: LineChart,
-    description: '深度数据分析'
-  },
-  {
-    name: '资产管理大师',
-    href: '/advisor',
-    icon: Sparkles,
-    description: 'AI 每日分析与优化建议'
+    description: '风险指标与相关性'
   },
   {
     name: '路线图',
@@ -47,10 +41,16 @@ const navigation = [
     description: '配置计划与执行'
   },
   {
-    name: '价格提醒',
-    href: '/alerts',
-    icon: Bell,
-    description: '到价通知与做T时机'
+    name: '投资计划',
+    href: '/plans',
+    icon: ClipboardList,
+    description: '分批建仓与执行跟踪'
+  },
+  {
+    name: '宏观事件',
+    href: '/events',
+    icon: CalendarDays,
+    description: '跟踪影响市场的关键事件'
   }
 ]
 

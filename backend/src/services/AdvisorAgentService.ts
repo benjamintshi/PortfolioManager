@@ -10,15 +10,11 @@ export interface AdvisorContext {
     totalCostUsd: number;
     totalProfitUsd: number;
     totalProfitPercent: number;
-    categories: {
-      crypto: { valueUsd: number; percentage: number; profitPercent: number };
-      stock: { valueUsd: number; percentage: number; profitPercent: number };
-      gold: { valueUsd: number; percentage: number; profitPercent: number };
-    };
+    categories: Record<string, { valueUsd: number; percentage: number; profitPercent: number }>;
     topAssets: Array<{ symbol: string; name: string; valueUsd: number; profitPercent: number }>;
   };
   rebalance: {
-    config: { cryptoTarget: number; stockTarget: number; goldTarget: number; threshold: number };
+    config: { targets: Record<string, number>; threshold: number };
     needsRebalancing: boolean;
     maxDeviation: number;
     suggestions: Array<{ category: string; action: string; amount: number; currentPct: number; targetPct: number }>;
@@ -142,34 +138,25 @@ export class AdvisorAgentService {
         totalCostUsd: summary.totalCostUsd,
         totalProfitUsd: summary.totalProfitUsd,
         totalProfitPercent: summary.totalProfitPercent,
-        categories: {
-          crypto: {
-            valueUsd: summary.categories.crypto.valueUsd,
-            percentage: summary.categories.crypto.percentage,
-            profitPercent: summary.categories.crypto.profitPercent,
-          },
-          stock: {
-            valueUsd: summary.categories.stock.valueUsd,
-            percentage: summary.categories.stock.percentage,
-            profitPercent: summary.categories.stock.profitPercent,
-          },
-          gold: {
-            valueUsd: summary.categories.gold.valueUsd,
-            percentage: summary.categories.gold.percentage,
-            profitPercent: summary.categories.gold.profitPercent,
-          },
-        },
+        categories: Object.fromEntries(
+          Object.entries(summary.categories).map(([cat, catSummary]) => [
+            cat,
+            {
+              valueUsd: catSummary.valueUsd,
+              percentage: catSummary.percentage,
+              profitPercent: catSummary.profitPercent,
+            },
+          ])
+        ),
         topAssets,
       },
       rebalance: {
         config: config
           ? {
-              cryptoTarget: config.cryptoTarget,
-              stockTarget: config.stockTarget,
-              goldTarget: config.goldTarget,
+              targets: config.targets,
               threshold: config.threshold,
             }
-          : { cryptoTarget: 0.4, stockTarget: 0.4, goldTarget: 0.2, threshold: 0.05 },
+          : { targets: { crypto: 0.4, stock: 0.4, gold: 0.2 }, threshold: 0.05 },
         needsRebalancing: analysis?.needsRebalancing ?? false,
         maxDeviation: analysis?.maxDeviation ?? 0,
         suggestions: (analysis?.suggestions ?? []).map(s => ({
@@ -286,9 +273,17 @@ export class AdvisorAgentService {
     parts.push(`- 总成本: $${portfolio.totalCostUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
     parts.push(`- 总盈亏: ${portfolio.totalProfitPercent >= 0 ? '+' : ''}${portfolio.totalProfitPercent.toFixed(2)}%`);
 
-    parts.push(`\n## 资产配置\n- 加密货币: ${portfolio.categories.crypto.percentage.toFixed(1)}% (目标 ${(rebalance.config.cryptoTarget * 100).toFixed(0)}%)`);
-    parts.push(`- 股票基金: ${portfolio.categories.stock.percentage.toFixed(1)}% (目标 ${(rebalance.config.stockTarget * 100).toFixed(0)}%)`);
-    parts.push(`- 黄金: ${portfolio.categories.gold.percentage.toFixed(1)}% (目标 ${(rebalance.config.goldTarget * 100).toFixed(0)}%)`);
+    const categoryNames: Record<string, string> = {
+      crypto: '加密货币', stock: '股票基金', gold: '黄金',
+      bond: '固定收益', commodity: '大宗商品', reit: '不动产', cash: '现金',
+    };
+    const allocationLines: string[] = [];
+    for (const [cat, catSummary] of Object.entries(portfolio.categories)) {
+      const target = rebalance.config.targets[cat];
+      const targetStr = target !== undefined ? ` (目标 ${(target * 100).toFixed(0)}%)` : '';
+      allocationLines.push(`- ${categoryNames[cat] || cat}: ${catSummary.percentage.toFixed(1)}%${targetStr}`);
+    }
+    parts.push(`\n## 资产配置\n${allocationLines.join('\n')}`);
 
     // 配置偏离维度
     let allocScore = 0;

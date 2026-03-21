@@ -270,7 +270,7 @@ export class PriceService {
   /**
    * 获取价格（优先从缓存，过期则重新获取）
    */
-  async getPrice(symbol: string, category: 'crypto' | 'stock' | 'gold' | 'cash'): Promise<PriceData | null> {
+  async getPrice(symbol: string, category: string): Promise<PriceData | null> {
     // 先尝试从缓存获取
     const cached = this.getCachedPrice(symbol);
     if (cached) {
@@ -304,6 +304,11 @@ export class PriceService {
           break;
         case 'gold':
           priceData = await this.getGoldPrice(symbol);
+          break;
+        case 'bond':
+        case 'commodity':
+        case 'reit':
+          priceData = await this.getStockPrice(symbol);
           break;
         case 'cash':
           return { symbol, price: 1, currency: 'USD', source: 'static', timestamp: Date.now() };
@@ -359,7 +364,7 @@ export class PriceService {
       logger.info(`开始更新${assets.length}个资产的价格`);
       
       for (const asset of assets) {
-        await this.getPrice(asset.symbol, asset.category as 'crypto' | 'stock' | 'gold' | 'cash');
+        await this.getPrice(asset.symbol, asset.category);
         // 避免频率限制
         await new Promise(resolve => setTimeout(resolve, 100));
       }

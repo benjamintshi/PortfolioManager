@@ -59,20 +59,20 @@ router.get('/', async (req, res) => {
 router.get('/history', async (req, res) => {
   try {
     const symbol = req.query.symbol as string;
-    const category = req.query.category as 'crypto' | 'stock' | 'gold' | 'cash';
+    const category = req.query.category as string;
     const days = parseInt(req.query.days as string) || 30;
-    
+
     if (!symbol) {
       return res.status(400).json({
         success: false,
         error: '需要提供 symbol 参数'
       });
     }
-    
-    if (!category || !['crypto', 'stock', 'gold'].includes(category)) {
+
+    if (!category || !['crypto', 'stock', 'gold', 'bond', 'commodity', 'reit'].includes(category)) {
       return res.status(400).json({
         success: false,
-        error: '需要指定有效的资产类别 (crypto, stock, gold)'
+        error: '需要指定有效的资产类别 (crypto, stock, gold, bond, commodity, reit)'
       });
     }
     
@@ -116,12 +116,12 @@ router.get('/history', async (req, res) => {
 router.get('/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
-    const category = req.query.category as 'crypto' | 'stock' | 'gold' | 'cash';
-    
-    if (!category || !['crypto', 'stock', 'gold'].includes(category)) {
+    const category = req.query.category as string;
+
+    if (!category || !['crypto', 'stock', 'gold', 'bond', 'commodity', 'reit', 'cash'].includes(category)) {
       return res.status(400).json({
         success: false,
-        error: '需要指定有效的资产类别 (crypto, stock, gold)'
+        error: '需要指定有效的资产类别 (crypto, stock, gold, bond, commodity, reit, cash)'
       });
     }
     

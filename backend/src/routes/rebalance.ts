@@ -11,14 +11,14 @@ const portfolioService = new PortfolioService();
 router.get('/config', async (req, res) => {
   try {
     const config = rebalanceService.getRebalanceConfig();
-    
+
     if (!config) {
       return res.status(404).json({
         success: false,
         error: '未找到再平衡配置'
       });
     }
-    
+
     res.json({
       success: true,
       data: config
@@ -35,65 +35,69 @@ router.get('/config', async (req, res) => {
 // 更新再平衡配置
 router.put('/config', async (req, res) => {
   try {
-    const { crypto, stock, gold, threshold } = req.body;
-    
+    const { targets, threshold } = req.body;
+
     // 验证输入
-    if (crypto === undefined || stock === undefined || gold === undefined) {
+    if (!targets || typeof targets !== 'object') {
       return res.status(400).json({
         success: false,
-        error: '缺少必填字段: crypto, stock, gold'
+        error: '缺少必填字段: targets (Record<string, number>)'
       });
     }
-    
-    const cryptoTarget = parseFloat(crypto);
-    const stockTarget = parseFloat(stock);
-    const goldTarget = parseFloat(gold);
+
+    // 验证每个 target 值
+    for (const [category, value] of Object.entries(targets)) {
+      const numValue = parseFloat(value as any);
+      if (isNaN(numValue) || numValue < 0) {
+        return res.status(400).json({
+          success: false,
+          error: `无效的目标值: ${category}=${value}`
+        });
+      }
+    }
+
     const thresholdValue = threshold !== undefined ? parseFloat(threshold) : 0.05;
-    
-    // 验证数值
-    if (isNaN(cryptoTarget) || isNaN(stockTarget) || isNaN(goldTarget) || isNaN(thresholdValue)) {
+
+    if (isNaN(thresholdValue)) {
       return res.status(400).json({
         success: false,
-        error: '所有数值必须是有效数字'
+        error: '阈值必须是有效数字'
       });
     }
-    
-    if (cryptoTarget < 0 || stockTarget < 0 || goldTarget < 0 || thresholdValue < 0) {
+
+    if (thresholdValue < 0 || thresholdValue > 1) {
       return res.status(400).json({
         success: false,
-        error: '所有数值必须大于等于0'
+        error: '阈值必须在 0-1 之间'
       });
     }
-    
-    if (thresholdValue > 1) {
+
+    // Parse targets to numbers
+    const parsedTargets: Record<string, number> = {};
+    for (const [category, value] of Object.entries(targets)) {
+      parsedTargets[category] = parseFloat(value as any);
+    }
+
+    const total = Object.values(parsedTargets).reduce((sum, v) => sum + v, 0);
+    if (total > 1.0 + 0.001) {
       return res.status(400).json({
         success: false,
-        error: '阈值必须小于等于1'
+        error: `目标配比总和必须 <= 1.0（cash 为隐含余数），当前为${total.toFixed(3)}`
       });
     }
-    
-    const total = cryptoTarget + stockTarget + goldTarget;
-    if (Math.abs(total - 1.0) > 0.001) {
-      return res.status(400).json({
-        success: false,
-        error: `目标配比总和必须为1.0，当前为${total.toFixed(3)}`
-      });
-    }
-    
+
     const success = rebalanceService.updateRebalanceConfig({
-      cryptoTarget,
-      stockTarget,
-      goldTarget,
+      targets: parsedTargets,
       threshold: thresholdValue
     });
-    
+
     if (!success) {
       return res.status(500).json({
         success: false,
         error: '更新配置失败'
       });
     }
-    
+
     res.json({
       success: true,
       message: '再平衡配置更新成功'
@@ -111,7 +115,7 @@ router.put('/config', async (req, res) => {
 router.get('/suggest', async (req, res) => {
   try {
     const analysis = await rebalanceService.calculateRebalanceSuggestions();
-    
+
     res.json({
       success: true,
       data: analysis
@@ -129,16 +133,16 @@ router.get('/suggest', async (req, res) => {
 router.get('/history', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
-    
+
     if (limit < 1 || limit > 100) {
       return res.status(400).json({
         success: false,
         error: '限制数量应在 1-100 之间'
       });
     }
-    
+
     const history = rebalanceService.getRebalanceHistory(limit);
-    
+
     res.json({
       success: true,
       data: {
@@ -159,37 +163,37 @@ router.get('/history', async (req, res) => {
 router.post('/execute', async (req, res) => {
   try {
     const { notes } = req.body;
-    
+
     // 获取当前组合状态
     const portfolio = await portfolioService.getPortfolioSummary();
     const analysis = await rebalanceService.calculateRebalanceSuggestions();
-    
+
     if (!analysis.needsRebalancing) {
       return res.status(400).json({
         success: false,
         error: '当前组合不需要再平衡'
       });
     }
-    
-    const beforePcts = {
-      crypto: portfolio.categories.crypto.percentage / 100,
-      stock: portfolio.categories.stock.percentage / 100,
-      gold: portfolio.categories.gold.percentage / 100
-    };
-    
+
+    // Build dynamic beforePcts from portfolio categories
+    const beforePcts: Record<string, number> = {};
+    for (const [cat, catSummary] of Object.entries(portfolio.categories)) {
+      beforePcts[cat] = catSummary.percentage / 100;
+    }
+
     const recordId = rebalanceService.recordRebalanceExecution(
       beforePcts,
       analysis.suggestions,
       notes
     );
-    
+
     if (!recordId) {
       return res.status(500).json({
         success: false,
         error: '记录再平衡执行失败'
       });
     }
-    
+
     res.json({
       success: true,
       data: {
@@ -211,55 +215,53 @@ router.post('/execute', async (req, res) => {
 router.put('/execute/:id', async (req, res) => {
   try {
     const recordId = parseInt(req.params.id);
-    const { cryptoPct, stockPct, goldPct } = req.body;
-    
+    const { pcts } = req.body;
+
     if (isNaN(recordId)) {
       return res.status(400).json({
         success: false,
         error: '无效的记录ID'
       });
     }
-    
-    // 验证输入
-    if (cryptoPct === undefined || stockPct === undefined || goldPct === undefined) {
+
+    // Accept dynamic pcts: Record<string, number>
+    if (!pcts || typeof pcts !== 'object') {
       return res.status(400).json({
         success: false,
-        error: '缺少必填字段: cryptoPct, stockPct, goldPct'
+        error: '缺少必填字段: pcts (Record<string, number>)'
       });
     }
-    
-    const crypto = parseFloat(cryptoPct);
-    const stock = parseFloat(stockPct);
-    const gold = parseFloat(goldPct);
-    
-    if (isNaN(crypto) || isNaN(stock) || isNaN(gold)) {
-      return res.status(400).json({
-        success: false,
-        error: '所有百分比必须是有效数字'
-      });
+
+    // Validate and parse
+    const parsedPcts: Record<string, number> = {};
+    for (const [cat, value] of Object.entries(pcts)) {
+      const numValue = parseFloat(value as any);
+      if (isNaN(numValue)) {
+        return res.status(400).json({
+          success: false,
+          error: `无效的百分比值: ${cat}=${value}`
+        });
+      }
+      parsedPcts[cat] = numValue;
     }
-    
-    const total = crypto + stock + gold;
-    if (Math.abs(total - 1.0) > 0.01) {
+
+    const total = Object.values(parsedPcts).reduce((sum, v) => sum + v, 0);
+    if (Math.abs(total - 1.0) > 0.05) {
       return res.status(400).json({
         success: false,
         error: `百分比总和必须接近1.0，当前为${total.toFixed(3)}`
       });
     }
-    
-    const success = rebalanceService.updateRebalanceResult(recordId, {
-      crypto,
-      stock,
-      gold
-    });
-    
+
+    const success = rebalanceService.updateRebalanceResult(recordId, parsedPcts);
+
     if (!success) {
       return res.status(404).json({
         success: false,
         error: '记录不存在或更新失败'
       });
     }
-    
+
     res.json({
       success: true,
       message: '再平衡结果更新成功'
@@ -277,29 +279,28 @@ router.put('/execute/:id', async (req, res) => {
 router.get('/optimal', async (req, res) => {
   try {
     const optimalAllocation = await rebalanceService.getOptimalAllocation();
-    
+
     if (!optimalAllocation) {
+      // Provide a dynamic fallback based on current config
+      const config = rebalanceService.getRebalanceConfig();
+      const fallback = config ? config.targets : { crypto: 0.4, stock: 0.4, gold: 0.2 };
+
       return res.json({
         success: true,
         data: {
           message: '历史数据不足，无法计算最优配比',
-          fallback: {
-            crypto: 0.4,
-            stock: 0.4,
-            gold: 0.2
-          }
+          fallback
         }
       });
     }
-    
+
     // 归一化确保总和为1
-    const total = optimalAllocation.crypto + optimalAllocation.stock + optimalAllocation.gold;
-    const normalized = {
-      crypto: optimalAllocation.crypto / total,
-      stock: optimalAllocation.stock / total,
-      gold: optimalAllocation.gold / total
-    };
-    
+    const total = Object.values(optimalAllocation).reduce((sum, v) => sum + v, 0);
+    const normalized: Record<string, number> = {};
+    for (const [cat, value] of Object.entries(optimalAllocation)) {
+      normalized[cat] = value / total;
+    }
+
     res.json({
       success: true,
       data: {
@@ -322,7 +323,7 @@ router.get('/optimal', async (req, res) => {
 router.get('/check', async (req, res) => {
   try {
     const alert = await rebalanceService.checkRebalanceAlert();
-    
+
     res.json({
       success: true,
       data: alert

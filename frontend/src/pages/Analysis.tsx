@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { TrendingUp, BarChart3, Activity, Target } from 'lucide-react'
 import { portfolioApi, rebalanceApi, useApi } from '@/hooks/useApi'
-import { formatPercent, formatCurrency } from '@/utils/format'
+import { formatPercent, formatCurrency, getCategoryName, getCategoryColor } from '@/utils/format'
 
 interface CorrelationMatrix {
   crypto_stock: number
@@ -251,35 +251,19 @@ export default function Analysis() {
           {optimalAllocation ? (
             <div className="space-y-4">
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-crypto"></div>
-                    <span className="text-sm">加密货币</span>
-                  </div>
-                  <div className="text-lg font-bold text-crypto">
-                    {(optimalAllocation.crypto * 100).toFixed(0)}%
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-stock"></div>
-                    <span className="text-sm">股票基金</span>
-                  </div>
-                  <div className="text-lg font-bold text-stock">
-                    {(optimalAllocation.stock * 100).toFixed(0)}%
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-gold"></div>
-                    <span className="text-sm">黄金</span>
-                  </div>
-                  <div className="text-lg font-bold text-gold">
-                    {(optimalAllocation.gold * 100).toFixed(0)}%
-                  </div>
-                </div>
+                {Object.entries(optimalAllocation)
+                  .filter(([_, value]) => typeof value === 'number')
+                  .map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getCategoryColor(key) }}></div>
+                        <span className="text-sm">{getCategoryName(key)}</span>
+                      </div>
+                      <div className="text-lg font-bold" style={{ color: getCategoryColor(key) }}>
+                        {((value as number) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
               </div>
 
               <div className="border-t border-border pt-4">

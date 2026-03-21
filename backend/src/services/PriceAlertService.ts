@@ -7,7 +7,7 @@ export interface PriceAlert {
   id: number;
   symbol: string;
   name: string;
-  category: 'crypto' | 'stock' | 'gold';
+  category: string;
   direction: 'buy' | 'sell';
   trigger_price: number;
   currency: string;

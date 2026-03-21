@@ -9,7 +9,7 @@ export default function Layout() {
       
       {/* 主内容区域 */}
       <main className="flex-1 overflow-auto">
-        <div className="h-full">
+        <div className="h-full p-6">
           <Outlet />
         </div>
       </main>

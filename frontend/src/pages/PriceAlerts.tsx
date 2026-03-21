@@ -7,7 +7,7 @@ interface PriceAlert {
   id: number
   symbol: string
   name: string
-  category: 'crypto' | 'stock' | 'gold'
+  category: string
   direction: 'buy' | 'sell'
   trigger_price: number
   currency: string
@@ -22,7 +22,7 @@ interface PriceAlert {
 const emptyForm: {
   symbol: string
   name: string
-  category: 'crypto' | 'stock' | 'gold'
+  category: string
   direction: 'buy' | 'sell'
   trigger_price: string
   currency: string
@@ -294,6 +294,9 @@ export default function PriceAlerts() {
                     <option value="crypto">加密货币</option>
                     <option value="stock">股票基金</option>
                     <option value="gold">黄金</option>
+                    <option value="bond">固定收益</option>
+                    <option value="commodity">大宗商品</option>
+                    <option value="reit">不动产/REITs</option>
                   </select>
                 </div>
                 <div>

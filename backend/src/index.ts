@@ -9,7 +9,7 @@ import { PriceService } from './services/PriceService';
 import { PortfolioService } from './services/PortfolioService';
 import { RebalanceService } from './services/RebalanceService';
 import { NotificationService } from './services/NotificationService';
-import { PriceAlertService } from './services/PriceAlertService';
+// PriceAlertService removed - 做T功能不再需要
 
 const app = express();
 const port = process.env.PORT || 6002;
@@ -90,9 +90,6 @@ function setupCronJobs() {
     try {
       logger.debug('开始更新加密货币价格');
       await priceService.updateAllPrices();
-      const alertService = new PriceAlertService();
-      const { triggered } = await alertService.checkAndNotify();
-      if (triggered > 0) logger.info(`价格提醒: 触发 ${triggered} 条`);
     } catch (error) {
       logger.error('定时更新加密货币价格失败:', error);
     }
@@ -150,20 +147,6 @@ function setupCronJobs() {
       }
     } catch (error) {
       logger.error('检查再平衡提醒失败:', error);
-    }
-  }, {
-    timezone: 'Asia/Shanghai'
-  });
-
-  // 每天09:00运行资产管理智能体分析
-  cron.schedule('0 9 * * *', async () => {
-    try {
-      const { AdvisorAgentService } = await import('./services/AdvisorAgentService');
-      const agent = new AdvisorAgentService();
-      const result = await agent.runAnalysis();
-      logger.info(`资产管理智能体: ${result.title} (健康分: ${result.health_score})`);
-    } catch (error) {
-      logger.error('资产管理智能体分析失败:', error);
     }
   }, {
     timezone: 'Asia/Shanghai'

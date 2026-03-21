@@ -4,15 +4,13 @@ import { PortfolioService, PortfolioSummary } from './PortfolioService';
 
 export interface RebalanceConfig {
   id?: number;
-  cryptoTarget: number;
-  stockTarget: number;
-  goldTarget: number;
+  targets: Record<string, number>;
   threshold: number;
   updatedAt?: number;
 }
 
 export interface RebalanceSuggestion {
-  category: 'crypto' | 'stock' | 'gold' | 'cash';
+  category: string;
   action: 'buy' | 'sell';
   amount: number;
   currentPct: number;
@@ -30,9 +28,12 @@ export interface RebalanceAnalysis {
 
 export interface RebalanceRecord {
   id: number;
-  beforeCryptoPct: number;
-  beforeStockPct: number;
-  beforeGoldPct: number;
+  beforePcts: Record<string, number>;
+  afterPcts?: Record<string, number>;
+  // Keep legacy fields for backward compatibility
+  beforeCryptoPct?: number;
+  beforeStockPct?: number;
+  beforeGoldPct?: number;
   afterCryptoPct?: number;
   afterStockPct?: number;
   afterGoldPct?: number;
@@ -50,20 +51,36 @@ export class RebalanceService {
   }
 
   /**
-   * 获取再平衡配置
+   * 获取再平衡配置（从 v2 表读取）
    */
   getRebalanceConfig(): RebalanceConfig | null {
     try {
-      const stmt = db.prepare(`
-        SELECT 
-          id, crypto_target as cryptoTarget, stock_target as stockTarget, 
-          gold_target as goldTarget, threshold, updated_at as updatedAt
-        FROM rebalance_config 
-        ORDER BY updated_at DESC 
+      const configRow = db.prepare(`
+        SELECT id, threshold, updated_at as updatedAt
+        FROM rebalance_config_v2
+        ORDER BY updated_at DESC
         LIMIT 1
-      `);
-      
-      return stmt.get() as RebalanceConfig || null;
+      `).get() as any;
+
+      if (!configRow) return null;
+
+      const targetRows = db.prepare(`
+        SELECT category, target
+        FROM rebalance_targets
+        WHERE config_id = ?
+      `).all(configRow.id) as Array<{ category: string; target: number }>;
+
+      const targets: Record<string, number> = {};
+      for (const row of targetRows) {
+        targets[row.category] = row.target;
+      }
+
+      return {
+        id: configRow.id,
+        targets,
+        threshold: configRow.threshold,
+        updatedAt: configRow.updatedAt,
+      };
     } catch (error) {
       logger.error('获取再平衡配置失败:', error);
       return null;
@@ -71,34 +88,54 @@ export class RebalanceService {
   }
 
   /**
-   * 更新再平衡配置
+   * 更新再平衡配置（写入 v2 表）
    */
-  updateRebalanceConfig(config: Omit<RebalanceConfig, 'id' | 'updatedAt'>): boolean {
+  updateRebalanceConfig(config: { targets: Record<string, number>; threshold: number }): boolean {
     try {
-      // 验证配置
-      const total = config.cryptoTarget + config.stockTarget + config.goldTarget;
-      if (Math.abs(total - 1.0) > 0.001) {
-        logger.error(`配置验证失败: 总和=${total}, 应为1.0`);
+      // 验证配置：目标之和 <= 1.0（cash 为隐含余数）
+      const total = Object.values(config.targets).reduce((sum, v) => sum + v, 0);
+      if (total > 1.0 + 0.001) {
+        logger.error(`配置验证失败: 目标总和=${total}, 应 <= 1.0`);
         return false;
       }
-      
+
       if (config.threshold < 0 || config.threshold > 1) {
         logger.error(`阈值无效: ${config.threshold}, 应在0-1之间`);
         return false;
       }
 
-      // 删除旧配置
-      db.prepare('DELETE FROM rebalance_config').run();
-      
-      // 插入新配置
-      const stmt = db.prepare(`
-        INSERT INTO rebalance_config (crypto_target, stock_target, gold_target, threshold)
-        VALUES (?, ?, ?, ?)
-      `);
-      
-      stmt.run(config.cryptoTarget, config.stockTarget, config.goldTarget, config.threshold);
-      
-      logger.info(`更新再平衡配置: Crypto=${config.cryptoTarget}, Stock=${config.stockTarget}, Gold=${config.goldTarget}, 阈值=${config.threshold}`);
+      db.transaction(() => {
+        // 删除旧配置及其目标
+        const oldConfigs = db.prepare('SELECT id FROM rebalance_config_v2').all() as any[];
+        for (const old of oldConfigs) {
+          db.prepare('DELETE FROM rebalance_targets WHERE config_id = ?').run(old.id);
+        }
+        db.prepare('DELETE FROM rebalance_config_v2').run();
+
+        // 插入新配置
+        const insertConfig = db.prepare('INSERT INTO rebalance_config_v2 (threshold) VALUES (?)');
+        const result = insertConfig.run(config.threshold);
+        const configId = result.lastInsertRowid as number;
+
+        // 插入各分类目标
+        const insertTarget = db.prepare('INSERT INTO rebalance_targets (config_id, category, target) VALUES (?, ?, ?)');
+        for (const [category, target] of Object.entries(config.targets)) {
+          insertTarget.run(configId, category, target);
+        }
+
+        // 同步更新旧表以保持向后兼容
+        db.prepare('DELETE FROM rebalance_config').run();
+        const cryptoTarget = config.targets['crypto'] || 0;
+        const stockTarget = config.targets['stock'] || 0;
+        const goldTarget = config.targets['gold'] || 0;
+        db.prepare(`
+          INSERT INTO rebalance_config (crypto_target, stock_target, gold_target, threshold)
+          VALUES (?, ?, ?, ?)
+        `).run(cryptoTarget, stockTarget, goldTarget, config.threshold);
+      })();
+
+      const targetStr = Object.entries(config.targets).map(([k, v]) => `${k}=${v}`).join(', ');
+      logger.info(`更新再平衡配置: ${targetStr}, 阈值=${config.threshold}`);
       return true;
     } catch (error) {
       logger.error('更新再平衡配置失败:', error);
@@ -117,7 +154,7 @@ export class RebalanceService {
       }
 
       const portfolio = await this.portfolioService.getPortfolioSummary();
-      
+
       if (portfolio.totalValueUsd === 0) {
         return {
           needsRebalancing: false,
@@ -127,26 +164,16 @@ export class RebalanceService {
         };
       }
 
-      const current = {
-        crypto: portfolio.categories.crypto.percentage / 100,
-        stock: portfolio.categories.stock.percentage / 100,
-        gold: portfolio.categories.gold.percentage / 100
-      };
-
-      const target = {
-        crypto: config.cryptoTarget,
-        stock: config.stockTarget,
-        gold: config.goldTarget
-      };
-
       const suggestions: RebalanceSuggestion[] = [];
       let maxDeviation = 0;
 
-      // 计算每个类别的偏离度
-      for (const category of ['crypto', 'stock', 'gold'] as const) {
-        const diff = current[category] - target[category];
+      // Iterate over all categories in the config targets dynamically
+      for (const [category, targetPct] of Object.entries(config.targets)) {
+        const catSummary = portfolio.categories[category];
+        const currentPct = catSummary ? catSummary.percentage / 100 : 0;
+        const diff = currentPct - targetPct;
         const absDiff = Math.abs(diff);
-        
+
         if (absDiff > maxDeviation) {
           maxDeviation = absDiff;
         }
@@ -160,8 +187,8 @@ export class RebalanceService {
             category,
             action: diff > 0 ? 'sell' : 'buy',
             amount,
-            currentPct: current[category],
-            targetPct: target[category],
+            currentPct,
+            targetPct,
             deviation: diff,
             priority
           });
@@ -195,7 +222,7 @@ export class RebalanceService {
     const buySuggestions = suggestions.filter(s => s.action === 'buy');
 
     let summary = '建议进行再平衡：';
-    
+
     // 卖出建议
     for (const suggestion of sellSuggestions) {
       const categoryName = this.getCategoryName(suggestion.category);
@@ -216,11 +243,15 @@ export class RebalanceService {
   /**
    * 获取类别中文名称
    */
-  private getCategoryName(category: 'crypto' | 'stock' | 'gold' | 'cash'): string {
+  private getCategoryName(category: string): string {
     switch (category) {
       case 'crypto': return '加密货币';
       case 'stock': return '股票基金';
       case 'gold': return '黄金';
+      case 'bond': return '固定收益';
+      case 'commodity': return '大宗商品';
+      case 'reit': return '不动产';
+      case 'cash': return '现金';
       default: return category;
     }
   }
@@ -229,7 +260,7 @@ export class RebalanceService {
    * 记录再平衡执行
    */
   recordRebalanceExecution(
-    beforePcts: { crypto: number; stock: number; gold: number },
+    beforePcts: Record<string, number>,
     suggestions: RebalanceSuggestion[],
     notes?: string
   ): number | null {
@@ -240,16 +271,16 @@ export class RebalanceService {
           suggestions, executed_at, notes
         ) VALUES (?, ?, ?, ?, ?, ?)
       `);
-      
+
       const result = stmt.run(
-        beforePcts.crypto,
-        beforePcts.stock,
-        beforePcts.gold,
+        JSON.stringify(beforePcts),
+        JSON.stringify(beforePcts),
+        JSON.stringify(beforePcts),
         JSON.stringify(suggestions),
         Date.now(),
         notes
       );
-      
+
       logger.info('记录再平衡执行');
       return result.lastInsertRowid as number;
     } catch (error) {
@@ -263,17 +294,18 @@ export class RebalanceService {
    */
   updateRebalanceResult(
     recordId: number,
-    afterPcts: { crypto: number; stock: number; gold: number }
+    afterPcts: Record<string, number>
   ): boolean {
     try {
       const stmt = db.prepare(`
-        UPDATE rebalance_history 
+        UPDATE rebalance_history
         SET after_crypto_pct = ?, after_stock_pct = ?, after_gold_pct = ?
         WHERE id = ?
       `);
-      
-      const result = stmt.run(afterPcts.crypto, afterPcts.stock, afterPcts.gold, recordId);
-      
+
+      const jsonStr = JSON.stringify(afterPcts);
+      const result = stmt.run(jsonStr, jsonStr, jsonStr, recordId);
+
       logger.info(`更新再平衡结果 ID ${recordId}`);
       return result.changes > 0;
     } catch (error) {
@@ -288,7 +320,7 @@ export class RebalanceService {
   getRebalanceHistory(limit: number = 20): RebalanceRecord[] {
     try {
       const stmt = db.prepare(`
-        SELECT 
+        SELECT
           id, before_crypto_pct as beforeCryptoPct, before_stock_pct as beforeStockPct,
           before_gold_pct as beforeGoldPct, after_crypto_pct as afterCryptoPct,
           after_stock_pct as afterStockPct, after_gold_pct as afterGoldPct,
@@ -297,14 +329,63 @@ export class RebalanceService {
         ORDER BY executed_at DESC
         LIMIT ?
       `);
-      
+
       const records = stmt.all(limit) as any[];
-      
-      // 解析suggestions JSON
-      return records.map(record => ({
-        ...record,
-        suggestions: JSON.parse(record.suggestions || '[]')
-      }));
+
+      return records.map(record => {
+        // Parse beforePcts: try JSON first, fall back to legacy numeric columns
+        let beforePcts: Record<string, number>;
+        try {
+          const parsed = JSON.parse(record.beforeCryptoPct);
+          if (typeof parsed === 'object' && parsed !== null) {
+            beforePcts = parsed;
+          } else {
+            throw new Error('not an object');
+          }
+        } catch {
+          beforePcts = {
+            crypto: record.beforeCryptoPct || 0,
+            stock: record.beforeStockPct || 0,
+            gold: record.beforeGoldPct || 0,
+          };
+        }
+
+        // Parse afterPcts
+        let afterPcts: Record<string, number> | undefined;
+        if (record.afterCryptoPct != null) {
+          try {
+            const parsed = JSON.parse(record.afterCryptoPct);
+            if (typeof parsed === 'object' && parsed !== null) {
+              afterPcts = parsed;
+            } else {
+              throw new Error('not an object');
+            }
+          } catch {
+            afterPcts = {
+              crypto: record.afterCryptoPct || 0,
+              stock: record.afterStockPct || 0,
+              gold: record.afterGoldPct || 0,
+            };
+          }
+        }
+
+        return {
+          id: record.id,
+          beforePcts,
+          afterPcts,
+          // Legacy fields for backward compatibility
+          beforeCryptoPct: record.beforeCryptoPct,
+          beforeStockPct: record.beforeStockPct,
+          beforeGoldPct: record.beforeGoldPct,
+          afterCryptoPct: record.afterCryptoPct,
+          afterStockPct: record.afterStockPct,
+          afterGoldPct: record.afterGoldPct,
+          suggestions: JSON.parse(record.suggestions || '[]'),
+          executedAt: record.executedAt,
+          notes: record.notes,
+          createdAt: record.createdAt,
+        };
+      });
     } catch (error) {
       logger.error('获取再平衡历史失败:', error);
       return [];
@@ -317,7 +398,7 @@ export class RebalanceService {
   async checkRebalanceAlert(): Promise<{ needsAlert: boolean; message: string }> {
     try {
       const analysis = await this.calculateRebalanceSuggestions();
-      
+
       if (!analysis.needsRebalancing) {
         return {
           needsAlert: false,
@@ -327,7 +408,7 @@ export class RebalanceService {
 
       // 检查是否有高优先级建议
       const highPrioritySuggestions = analysis.suggestions.filter(s => s.priority === 'high');
-      
+
       if (highPrioritySuggestions.length === 0) {
         return {
           needsAlert: false,
@@ -338,18 +419,18 @@ export class RebalanceService {
       // 生成告警消息
       const config = this.getRebalanceConfig()!;
       const portfolio = await this.portfolioService.getPortfolioSummary();
-      
+
       let message = '⚖️ 再平衡提醒：\n';
-      
+
       for (const suggestion of highPrioritySuggestions) {
         const categoryName = this.getCategoryName(suggestion.category);
         const currentPct = (suggestion.currentPct * 100).toFixed(1);
         const targetPct = (suggestion.targetPct * 100).toFixed(1);
         const deviation = Math.abs(suggestion.deviation * 100).toFixed(1);
-        
+
         message += `${categoryName}占比${currentPct}%（目标${targetPct}%），偏离${deviation}%\n`;
       }
-      
+
       message += `\n总资产价值：$${portfolio.totalValueUsd.toFixed(0)}`;
       message += `\n最大偏离：${(analysis.maxDeviation * 100).toFixed(1)}%（阈值${(config.threshold * 100).toFixed(1)}%）`;
 
@@ -368,50 +449,70 @@ export class RebalanceService {
 
   /**
    * 获取最优配比建议（基于历史数据的简化版Markowitz优化）
+   * Returns dynamic Record<string, number> based on config targets
    */
-  async getOptimalAllocation(): Promise<{ crypto: number; stock: number; gold: number } | null> {
+  async getOptimalAllocation(): Promise<Record<string, number> | null> {
     try {
+      const config = this.getRebalanceConfig();
+      if (!config) {
+        logger.warn('无再平衡配置，无法计算最优配比');
+        return null;
+      }
+
       // 获取组合历史数据
       const history = this.portfolioService.getPortfolioHistory(90); // 3个月数据
-      
+
       if (history.length < 30) {
         logger.warn('历史数据不足，无法计算最优配比');
         return null;
       }
 
-      // 计算各类别的历史收益和风险
-      const returns = {
-        crypto: this.calculateReturns(history.map(h => h.cryptoValueUsd)),
-        stock: this.calculateReturns(history.map(h => h.stockValueUsd)),
-        gold: this.calculateReturns(history.map(h => h.goldValueUsd))
-      };
+      // Use categoryDetails from history for all categories in the config
+      const categories = Object.keys(config.targets);
 
-      const volatility = {
-        crypto: this.calculateVolatility(returns.crypto),
-        stock: this.calculateVolatility(returns.stock),
-        gold: this.calculateVolatility(returns.gold)
-      };
-
-      // 简化的风险调整收益率
-      const sharpeRatio = {
-        crypto: this.calculateMeanReturn(returns.crypto) / (volatility.crypto || 1),
-        stock: this.calculateMeanReturn(returns.stock) / (volatility.stock || 1),
-        gold: this.calculateMeanReturn(returns.gold) / (volatility.gold || 1)
-      };
-
-      // 基于夏普比率的权重分配（简化版本）
-      const totalSharpe = Math.abs(sharpeRatio.crypto) + Math.abs(sharpeRatio.stock) + Math.abs(sharpeRatio.gold);
-      
-      if (totalSharpe === 0) {
-        // 如果无法计算，返回均等权重
-        return { crypto: 0.33, stock: 0.34, gold: 0.33 };
+      // Build value series for each category
+      const valueSeries: Record<string, number[]> = {};
+      for (const cat of categories) {
+        valueSeries[cat] = history.map(h => {
+          if (h.categoryDetails && h.categoryDetails[cat]) {
+            return h.categoryDetails[cat].valueUsd;
+          }
+          // Fallback to legacy fields
+          if (cat === 'crypto') return h.cryptoValueUsd;
+          if (cat === 'stock') return h.stockValueUsd;
+          if (cat === 'gold') return h.goldValueUsd;
+          return 0;
+        });
       }
 
-      return {
-        crypto: Math.max(0.1, Math.min(0.7, Math.abs(sharpeRatio.crypto) / totalSharpe)),
-        stock: Math.max(0.1, Math.min(0.7, Math.abs(sharpeRatio.stock) / totalSharpe)),
-        gold: Math.max(0.1, Math.min(0.7, Math.abs(sharpeRatio.gold) / totalSharpe))
-      };
+      // Calculate returns, volatility, and Sharpe ratio for each category
+      const sharpeRatios: Record<string, number> = {};
+      for (const cat of categories) {
+        const returns = this.calculateReturns(valueSeries[cat]);
+        const vol = this.calculateVolatility(returns);
+        const meanReturn = this.calculateMeanReturn(returns);
+        sharpeRatios[cat] = meanReturn / (vol || 1);
+      }
+
+      // 基于夏普比率的权重分配
+      const totalSharpe = Object.values(sharpeRatios).reduce((sum, v) => sum + Math.abs(v), 0);
+
+      if (totalSharpe === 0) {
+        // Equal weight fallback
+        const equalWeight = 1.0 / categories.length;
+        const result: Record<string, number> = {};
+        for (const cat of categories) {
+          result[cat] = parseFloat(equalWeight.toFixed(2));
+        }
+        return result;
+      }
+
+      const result: Record<string, number> = {};
+      for (const cat of categories) {
+        result[cat] = Math.max(0.05, Math.min(0.7, Math.abs(sharpeRatios[cat]) / totalSharpe));
+      }
+
+      return result;
     } catch (error) {
       logger.error('计算最优配比失败:', error);
       return null;
@@ -444,10 +545,10 @@ export class RebalanceService {
    */
   private calculateVolatility(returns: number[]): number {
     if (returns.length < 2) return 0;
-    
+
     const mean = this.calculateMeanReturn(returns);
     const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (returns.length - 1);
-    
+
     return Math.sqrt(variance);
   }
 }

@@ -113,14 +113,17 @@ export function formatDate(date: string | Date): string {
 /**
  * 获取资产类别中文名称
  */
-export function getCategoryName(category: 'crypto' | 'stock' | 'gold' | 'cash' | string): string {
+export function getCategoryName(category: string): string {
   const names: Record<string, string> = {
     crypto: '加密货币',
     stock: '股票基金',
     gold: '黄金',
+    bond: '固定收益',
+    commodity: '大宗商品',
+    reit: '不动产/REITs',
     cash: '现金',
   };
-  
+
   return names[category] || category;
 }
 
@@ -141,15 +144,18 @@ export function getTransactionTypeName(type: 'buy' | 'sell' | 'transfer_in' | 't
 /**
  * 获取资产类别颜色
  */
-export function getCategoryColor(category: 'crypto' | 'stock' | 'gold' | 'cash' | string): string {
+export function getCategoryColor(category: string): string {
   const colors: Record<string, string> = {
     crypto: '#f7931e',
     stock: '#22c55e',
     gold: '#facc15',
-    cash: '#3b82f6',
+    bond: '#3B82F6',
+    commodity: '#D97706',
+    reit: '#8B5CF6',
+    cash: '#6b7280',
   };
-  
-  return colors[category] || '#6b7280';
+
+  return colors[category] || '#9CA3AF';
 }
 
 /**

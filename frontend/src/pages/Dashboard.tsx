@@ -4,6 +4,7 @@ import { portfolioApi, exchangeRateApi, useApi } from '@/hooks/useApi'
 import { formatCurrency, formatPercent, getProfitColorClass, getCategoryName, getCategoryColor } from '@/utils/format'
 import PieChart from '@/components/PieChart'
 import LineChart from '@/components/LineChart'
+import MacroIndicators from '@/components/MacroIndicators'
 
 interface PortfolioSummary {
   totalValueUsd: number
@@ -11,11 +12,7 @@ interface PortfolioSummary {
   totalCostUsd: number
   totalProfitUsd: number
   totalProfitPercent: number
-  categories: {
-    crypto: CategorySummary
-    stock: CategorySummary
-    gold: CategorySummary
-  }
+  categories: Record<string, CategorySummary>
   assets: any[]
   lastUpdated: number
 }
@@ -118,27 +115,15 @@ export default function Dashboard() {
   const totalCost = getDisplayValue(summary.totalCostUsd)
   const totalProfit = getDisplayValue(summary.totalProfitUsd)
 
-  // 饼图数据
-  const pieData = [
-    {
-      name: getCategoryName('crypto'),
-      value: summary.categories.crypto.percentage,
-      color: getCategoryColor('crypto'),
-      amount: getDisplayValue(summary.categories.crypto.valueUsd)
-    },
-    {
-      name: getCategoryName('stock'),
-      value: summary.categories.stock.percentage,
-      color: getCategoryColor('stock'),
-      amount: getDisplayValue(summary.categories.stock.valueUsd)
-    },
-    {
-      name: getCategoryName('gold'),
-      value: summary.categories.gold.percentage,
-      color: getCategoryColor('gold'),
-      amount: getDisplayValue(summary.categories.gold.valueUsd)
-    }
-  ].filter(item => item.value > 0)
+  // 饼图数据 - 动态遍历所有类别
+  const pieData = Object.entries(summary.categories)
+    .map(([key, category]) => ({
+      name: getCategoryName(key),
+      value: category.percentage,
+      color: getCategoryColor(key),
+      amount: getDisplayValue(category.valueUsd)
+    }))
+    .filter(item => item.value > 0)
 
   // 折线图数据
   const lineData = historyData.map(item => ({
@@ -306,24 +291,27 @@ export default function Dashboard() {
       </div>
 
       {/* 资产类别详情 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${
+        Object.keys(summary.categories).length <= 3 ? 'md:grid-cols-3' :
+        Object.keys(summary.categories).length <= 4 ? 'md:grid-cols-4' :
+        'md:grid-cols-3 lg:grid-cols-4'
+      }`}>
         {Object.entries(summary.categories).map(([key, category]) => {
           if (category.valueUsd === 0) return null
-          
-          const categoryKey = key as 'crypto' | 'stock' | 'gold'
+
           const value = getDisplayValue(category.valueUsd)
           const cost = getDisplayValue(category.costUsd)
           const profit = getDisplayValue(category.profitUsd)
-          
+
           return (
             <div key={key} className="bg-card/80 p-5 rounded-xl border border-border/60 ring-1 ring-border/20">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-base font-semibold text-foreground">
-                  {getCategoryName(categoryKey)}
+                  {getCategoryName(key)}
                 </h4>
-                <div 
+                <div
                   className="w-3 h-3 rounded-full ring-2 ring-white/10"
-                  style={{ backgroundColor: getCategoryColor(categoryKey) }}
+                  style={{ backgroundColor: getCategoryColor(key) }}
                 />
               </div>
               
@@ -360,6 +348,9 @@ export default function Dashboard() {
           )
         })}
       </div>
+
+      {/* 宏观指标 */}
+      <MacroIndicators />
     </div>
   )
 }

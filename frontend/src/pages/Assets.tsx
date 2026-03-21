@@ -5,7 +5,7 @@ import { formatCurrency, formatPercent, getCategoryName, getCategoryColor, getPr
 
 interface Asset {
   id: number
-  category: 'crypto' | 'stock' | 'gold' | 'cash'
+  category: string
   symbol: string
   name: string
   quantity: number
@@ -22,7 +22,7 @@ interface Asset {
 interface MergedAsset {
   symbol: string
   name: string
-  category: 'crypto' | 'stock' | 'gold' | 'cash'
+  category: string
   totalQuantity: number
   avgCostPrice: number
   costCurrency: string
@@ -39,7 +39,7 @@ interface MergedAsset {
 }
 
 interface AssetForm {
-  category: 'crypto' | 'stock' | 'gold' | 'cash'
+  category: string
   symbol: string
   name: string
   quantity: string
@@ -58,7 +58,7 @@ const emptyForm: AssetForm = {
   notes: '',
 }
 
-const PRESETS: Record<string, { symbol: string; name: string; category: 'crypto' | 'stock' | 'gold' }[]> = {
+const PRESETS: Record<string, { symbol: string; name: string; category: string }[]> = {
   crypto: [
     { symbol: 'BTCUSDT', name: '比特币 BTC', category: 'crypto' },
     { symbol: 'ETHUSDT', name: '以太坊 ETH', category: 'crypto' },
@@ -76,6 +76,21 @@ const PRESETS: Record<string, { symbol: string; name: string; category: 'crypto'
   ],
   gold: [
     { symbol: 'GC=F', name: '黄金（按克）', category: 'gold' },
+  ],
+  bond: [
+    { symbol: 'TLT', name: '20年+国债 ETF', category: 'bond' },
+    { symbol: 'SHY', name: '1-3年国债 ETF', category: 'bond' },
+    { symbol: 'IEI', name: '3-7年国债 ETF', category: 'bond' },
+  ],
+  commodity: [
+    { symbol: 'COPX', name: '铜矿 ETF', category: 'commodity' },
+    { symbol: 'CPER', name: '铜期货 ETF', category: 'commodity' },
+    { symbol: 'URA', name: '铀矿 ETF', category: 'commodity' },
+    { symbol: 'DBC', name: '大宗商品指数 ETF', category: 'commodity' },
+  ],
+  reit: [
+    { symbol: 'VNQ', name: '不动产 ETF', category: 'reit' },
+    { symbol: 'XLRE', name: '房地产精选 ETF', category: 'reit' },
   ],
 }
 
@@ -198,7 +213,7 @@ export default function Assets() {
     }
   }
 
-  const handlePreset = (preset: { symbol: string; name: string; category: 'crypto' | 'stock' | 'gold' }) => {
+  const handlePreset = (preset: { symbol: string; name: string; category: string }) => {
     setForm(prev => ({ ...prev, symbol: preset.symbol, name: preset.name, category: preset.category }))
   }
 
@@ -239,6 +254,9 @@ export default function Assets() {
               <option value="crypto">加密货币</option>
               <option value="stock">股票基金</option>
               <option value="gold">黄金贵金属</option>
+              <option value="bond">固定收益</option>
+              <option value="commodity">大宗商品</option>
+              <option value="reit">不动产/REITs</option>
               <option value="cash">现金</option>
             </select>
           </div>
@@ -341,6 +359,9 @@ export default function Assets() {
           <option value="crypto">加密货币</option>
           <option value="stock">股票基金</option>
           <option value="gold">黄金</option>
+          <option value="bond">固定收益</option>
+          <option value="commodity">大宗商品</option>
+          <option value="reit">不动产/REITs</option>
           <option value="cash">现金</option>
         </select>
       </div>

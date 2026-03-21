@@ -1,5 +1,6 @@
 import express from 'express';
 import { PriceAlertService } from '../services/PriceAlertService';
+import { ASSET_CATEGORIES } from '../database';
 import { logger } from '../lib/logger';
 
 const router = express.Router();
@@ -64,8 +65,10 @@ router.post('/', (req, res) => {
     if (!symbol || !name || !category || !direction || trigger_price === undefined) {
       return res.status(400).json({ success: false, error: '缺少必填字段: symbol, name, category, direction, trigger_price' });
     }
-    if (!['crypto', 'stock', 'gold'].includes(category)) {
-      return res.status(400).json({ success: false, error: 'category 必须为 crypto, stock, gold' });
+    // Alerts support all categories except cash
+    const alertCategories = (ASSET_CATEGORIES as readonly string[]).filter(c => c !== 'cash');
+    if (!alertCategories.includes(category)) {
+      return res.status(400).json({ success: false, error: `category 必须为 ${alertCategories.join(', ')}` });
     }
     if (!['buy', 'sell'].includes(direction)) {
       return res.status(400).json({ success: false, error: 'direction 必须为 buy 或 sell' });
@@ -106,8 +109,9 @@ router.put('/:id', (req, res) => {
     if (symbol !== undefined) updates.symbol = String(symbol).toUpperCase();
     if (name !== undefined) updates.name = String(name).trim();
     if (category !== undefined) {
-      if (!['crypto', 'stock', 'gold'].includes(category)) {
-        return res.status(400).json({ success: false, error: 'category 必须为 crypto, stock, gold' });
+      const alertCategories = (ASSET_CATEGORIES as readonly string[]).filter(c => c !== 'cash');
+      if (!alertCategories.includes(category)) {
+        return res.status(400).json({ success: false, error: `category 必须为 ${alertCategories.join(', ')}` });
       }
       updates.category = category;
     }

@@ -112,7 +112,7 @@ export const assetsApi = {
   
   // 添加资产
   create: (asset: {
-    category: 'crypto' | 'stock' | 'gold' | 'cash';
+    category: string;
     symbol: string;
     name: string;
     quantity: number;
@@ -152,7 +152,7 @@ export const pricesApi = {
   getAll: () => api.get<ApiResponse>('/prices'),
   
   // 获取单个价格
-  getPrice: (symbol: string, category: 'crypto' | 'stock' | 'gold') =>
+  getPrice: (symbol: string, category: string) =>
     api.get<ApiResponse>(`/prices/${symbol}`, { params: { category } }),
   
   // 获取历史价格
@@ -204,13 +204,15 @@ export const rebalanceApi = {
   
   // 更新配置
   updateConfig: (config: {
+    targets?: Record<string, number>;
+    threshold?: number;
+    // legacy fields
     cryptoTarget?: number;
     stockTarget?: number;
     goldTarget?: number;
     crypto?: number;
     stock?: number;
     gold?: number;
-    threshold?: number;
   }) => api.put<ApiResponse>('/rebalance/config', config),
   
   // 获取建议
@@ -225,11 +227,8 @@ export const rebalanceApi = {
     api.post<ApiResponse>('/rebalance/execute', { notes }),
   
   // 更新执行结果
-  updateResult: (id: number, result: {
-    cryptoPct: number;
-    stockPct: number;
-    goldPct: number;
-  }) => api.put<ApiResponse>(`/rebalance/execute/${id}`, result),
+  updateResult: (id: number, result: Record<string, number>) =>
+    api.put<ApiResponse>(`/rebalance/execute/${id}`, result),
   
   // 获取最优配比
   getOptimal: () => api.get<ApiResponse>('/rebalance/optimal'),
@@ -281,6 +280,65 @@ export const alertsApi = {
   update: (id: number, updates: any) => api.put<ApiResponse>(`/alerts/${id}`, updates),
   delete: (id: number) => api.delete<ApiResponse>(`/alerts/${id}`),
   check: () => api.post<ApiResponse>('/alerts/check'),
+};
+
+/**
+ * 宏观指标API
+ */
+export const indicatorsApi = {
+  getLatest: () => api.get<ApiResponse>('/indicators'),
+  getHistory: (name: string, days?: number) =>
+    api.get<ApiResponse>(`/indicators/${encodeURIComponent(name)}/history`, { params: { days } }),
+  record: (data: { indicator_name: string; value: number; source?: string }) =>
+    api.post<ApiResponse>('/indicators', data),
+  recordBatch: (indicators: { indicator_name: string; value: number; source?: string }[]) =>
+    api.post<ApiResponse>('/indicators/batch', { indicators }),
+};
+
+/**
+ * 投资计划API
+ */
+export const plansApi = {
+  getAll: () => api.get<ApiResponse>('/plans'),
+  get: (id: number) => api.get<ApiResponse>(`/plans/${id}`),
+  create: (plan: {
+    symbol: string;
+    name: string;
+    category: string;
+    direction: string;
+    total_target_usd?: number;
+    status?: string;
+    tranches_json?: any;
+    stop_loss?: number;
+    stop_loss_note?: string;
+    take_profit?: number;
+    take_profit_note?: string;
+    rationale?: string;
+  }) => api.post<ApiResponse>('/plans', plan),
+  update: (id: number, updates: any) => api.put<ApiResponse>(`/plans/${id}`, updates),
+  delete: (id: number) => api.delete<ApiResponse>(`/plans/${id}`),
+  executeTranche: (planId: number, trancheIndex: number, actualPrice: number) =>
+    api.post<ApiResponse>(`/plans/${planId}/tranches/${trancheIndex}/execute`, { actualPrice }),
+};
+
+/**
+ * 宏观事件API
+ */
+export const eventsApi = {
+  getAll: () => api.get<ApiResponse>('/events'),
+  getUpcoming: () => api.get<ApiResponse>('/events', { params: { upcoming: 'true' } }),
+  create: (event: {
+    event_name: string;
+    event_date: string;
+    event_type?: string;
+    importance?: string;
+    affected_assets?: string;
+    expected_impact?: string;
+    actual_result?: string;
+    notes?: string;
+  }) => api.post<ApiResponse>('/events', event),
+  update: (id: number, updates: any) => api.put<ApiResponse>(`/events/${id}`, updates),
+  delete: (id: number) => api.delete<ApiResponse>(`/events/${id}`),
 };
 
 /**

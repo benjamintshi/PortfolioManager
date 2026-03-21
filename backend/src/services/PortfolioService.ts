@@ -5,7 +5,7 @@ import { ExchangeRateService } from './ExchangeRateService';
 
 export interface Asset {
   id: number;
-  category: 'crypto' | 'stock' | 'gold' | 'cash';
+  category: string;
   symbol: string;
   name: string;
   quantity: number;
@@ -27,7 +27,7 @@ export interface AssetWithPrice extends Asset {
 export interface MergedAsset {
   symbol: string;
   name: string;
-  category: 'crypto' | 'stock' | 'gold' | 'cash';
+  category: string;
   totalQuantity: number;
   avgCostPrice: number;
   costCurrency: string;
@@ -46,12 +46,7 @@ export interface PortfolioSummary {
   totalCostUsd: number;
   totalProfitUsd: number;
   totalProfitPercent: number;
-  categories: {
-    crypto: CategorySummary;
-    stock: CategorySummary;
-    gold: CategorySummary;
-    cash: CategorySummary;
-  };
+  categories: Record<string, CategorySummary>;
   assets: AssetWithPrice[];
   mergedAssets: MergedAsset[];
   lastUpdated: number;
@@ -76,6 +71,7 @@ export interface PortfolioHistory {
   stockPct: number;
   goldPct: number;
   exchangeRateUsdCny?: number;
+  categoryDetails?: Record<string, { valueUsd: number; percentage: number }>;
 }
 
 export class PortfolioService {
@@ -262,13 +258,12 @@ export class PortfolioService {
         } as any);
       }
       
-      // 计算各类别汇总
-      const categories = {
-        crypto: this.calculateCategorySummary(assetsWithPrice, 'crypto'),
-        stock: this.calculateCategorySummary(assetsWithPrice, 'stock'),
-        gold: this.calculateCategorySummary(assetsWithPrice, 'gold'),
-        cash: this.calculateCategorySummary(assetsWithPrice, 'cash'),
-      };
+      // Discover categories from actual assets
+      const categorySet = new Set(assets.map(a => a.category));
+      const categories: Record<string, CategorySummary> = {};
+      for (const cat of categorySet) {
+        categories[cat] = this.calculateCategorySummary(assetsWithPrice, cat);
+      }
       
       // 计算总值
       const totalValueUsd = Object.values(categories).reduce((sum, cat) => sum + cat.valueUsd, 0);
@@ -379,26 +374,41 @@ export class PortfolioService {
       
       const summary = await this.getPortfolioSummary();
       const usdCnyRate = await this.exchangeRateService.getUSDCNYRate();
-      
+
+      // Backward compatible: still write old columns for crypto/stock/gold
+      const cryptoCat = summary.categories['crypto'] || { valueUsd: 0, percentage: 0 };
+      const stockCat = summary.categories['stock'] || { valueUsd: 0, percentage: 0 };
+      const goldCat = summary.categories['gold'] || { valueUsd: 0, percentage: 0 };
+
       const stmt = db.prepare(`
         INSERT INTO portfolio_snapshots (
           total_value_usd, crypto_value_usd, stock_value_usd, gold_value_usd,
           crypto_pct, stock_pct, gold_pct, exchange_rate_usdcny, snapshot_date
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      
-      stmt.run(
+
+      const result = stmt.run(
         summary.totalValueUsd,
-        summary.categories.crypto.valueUsd,
-        summary.categories.stock.valueUsd,
-        summary.categories.gold.valueUsd,
-        summary.categories.crypto.percentage / 100,
-        summary.categories.stock.percentage / 100,
-        summary.categories.gold.percentage / 100,
+        cryptoCat.valueUsd,
+        stockCat.valueUsd,
+        goldCat.valueUsd,
+        cryptoCat.percentage / 100,
+        stockCat.percentage / 100,
+        goldCat.percentage / 100,
         usdCnyRate,
         today
       );
-      
+
+      // Write dynamic category details to portfolio_snapshot_details
+      const snapshotId = result.lastInsertRowid as number;
+      const detailStmt = db.prepare(`
+        INSERT INTO portfolio_snapshot_details (snapshot_id, category, value_usd, percentage)
+        VALUES (?, ?, ?, ?)
+      `);
+      for (const [cat, catSummary] of Object.entries(summary.categories)) {
+        detailStmt.run(snapshotId, cat, catSummary.valueUsd, catSummary.percentage / 100);
+      }
+
       logger.info(`生成每日快照: ${today}, 总价值: $${summary.totalValueUsd.toFixed(2)}`);
     } catch (error) {
       logger.error('生成每日快照失败:', error);
@@ -411,7 +421,8 @@ export class PortfolioService {
   getPortfolioHistory(days: number = 30): PortfolioHistory[] {
     try {
       const stmt = db.prepare(`
-        SELECT 
+        SELECT
+          id,
           snapshot_date as date,
           total_value_usd as totalValueUsd,
           crypto_value_usd as cryptoValueUsd,
@@ -425,8 +436,37 @@ export class PortfolioService {
         WHERE snapshot_date >= date('now', '-${days} days')
         ORDER BY snapshot_date ASC
       `);
-      
-      return stmt.all() as PortfolioHistory[];
+
+      const rows = stmt.all() as any[];
+
+      // Load category details for each snapshot
+      const detailStmt = db.prepare(`
+        SELECT category, value_usd as valueUsd, percentage
+        FROM portfolio_snapshot_details
+        WHERE snapshot_id = ?
+      `);
+
+      return rows.map(row => {
+        const details = detailStmt.all(row.id) as Array<{ category: string; valueUsd: number; percentage: number }>;
+        let categoryDetails: Record<string, { valueUsd: number; percentage: number }> | undefined;
+
+        if (details.length > 0) {
+          categoryDetails = {};
+          for (const d of details) {
+            categoryDetails[d.category] = { valueUsd: d.valueUsd, percentage: d.percentage };
+          }
+        } else {
+          // Fallback to old columns
+          categoryDetails = {
+            crypto: { valueUsd: row.cryptoValueUsd, percentage: row.cryptoPct },
+            stock: { valueUsd: row.stockValueUsd, percentage: row.stockPct },
+            gold: { valueUsd: row.goldValueUsd, percentage: row.goldPct },
+          };
+        }
+
+        const { id, ...rest } = row;
+        return { ...rest, categoryDetails } as PortfolioHistory;
+      });
     } catch (error) {
       logger.error('获取组合历史失败:', error);
       return [];

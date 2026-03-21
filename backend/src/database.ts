@@ -21,6 +21,10 @@ db.pragma('synchronous = NORMAL');
 db.pragma('cache_size = 1000');
 db.pragma('foreign_keys = ON');
 
+// 所有支持的资产分类
+export const ASSET_CATEGORIES = ['crypto', 'stock', 'gold', 'bond', 'commodity', 'reit', 'cash'] as const;
+export type AssetCategory = typeof ASSET_CATEGORIES[number];
+
 // 初始化数据库表
 export function initDatabase() {
   logger.info('初始化数据库...');
@@ -28,7 +32,7 @@ export function initDatabase() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS assets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold', 'cash')),
+      category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold', 'bond', 'commodity', 'reit', 'cash')),
       symbol TEXT NOT NULL,
       name TEXT NOT NULL,
       quantity REAL NOT NULL DEFAULT 0,
@@ -134,7 +138,7 @@ export function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       symbol TEXT NOT NULL,
       name TEXT NOT NULL,
-      category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold')),
+      category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold', 'bond', 'commodity', 'reit')),
       direction TEXT NOT NULL CHECK(direction IN ('buy', 'sell')),
       trigger_price REAL NOT NULL,
       currency TEXT DEFAULT 'USD',
@@ -196,6 +200,119 @@ export function initDatabase() {
     )
   `);
 
+  // === 新表：动态再平衡配置 ===
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rebalance_config_v2 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      threshold REAL NOT NULL DEFAULT 0.05,
+      updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rebalance_targets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      config_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      target REAL NOT NULL,
+      FOREIGN KEY (config_id) REFERENCES rebalance_config_v2(id),
+      UNIQUE(config_id, category)
+    )
+  `);
+
+  // 迁移旧配置到新表
+  const v2ConfigCount = db.prepare('SELECT COUNT(*) as count FROM rebalance_config_v2').get() as any;
+  if (!v2ConfigCount || v2ConfigCount.count === 0) {
+    const oldConfig = db.prepare('SELECT * FROM rebalance_config ORDER BY updated_at DESC LIMIT 1').get() as any;
+    if (oldConfig) {
+      const insertConfig = db.prepare('INSERT INTO rebalance_config_v2 (threshold) VALUES (?)');
+      const result = insertConfig.run(oldConfig.threshold);
+      const configId = result.lastInsertRowid as number;
+      const insertTarget = db.prepare('INSERT INTO rebalance_targets (config_id, category, target) VALUES (?, ?, ?)');
+      insertTarget.run(configId, 'crypto', oldConfig.crypto_target);
+      insertTarget.run(configId, 'stock', oldConfig.stock_target);
+      insertTarget.run(configId, 'gold', oldConfig.gold_target);
+      logger.info('迁移旧再平衡配置到 v2 表');
+    } else {
+      const insertConfig = db.prepare('INSERT INTO rebalance_config_v2 (threshold) VALUES (?)');
+      const result = insertConfig.run(0.05);
+      const configId = result.lastInsertRowid as number;
+      const insertTarget = db.prepare('INSERT INTO rebalance_targets (config_id, category, target) VALUES (?, ?, ?)');
+      insertTarget.run(configId, 'crypto', 0.4);
+      insertTarget.run(configId, 'stock', 0.4);
+      insertTarget.run(configId, 'gold', 0.2);
+      logger.info('插入默认再平衡配置 v2');
+    }
+  }
+
+  // === 新表：组合快照详情（支持动态分类）===
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS portfolio_snapshot_details (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      snapshot_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      value_usd REAL NOT NULL DEFAULT 0,
+      percentage REAL NOT NULL DEFAULT 0,
+      FOREIGN KEY (snapshot_id) REFERENCES portfolio_snapshots(id),
+      UNIQUE(snapshot_id, category)
+    )
+  `);
+
+  // === 新表：投资计划（分批建仓）===
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS investment_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold', 'bond', 'commodity', 'reit', 'cash')),
+      tier TEXT DEFAULT 'core' CHECK(tier IN ('core', 'satellite', 'hedge')),
+      direction TEXT NOT NULL CHECK(direction IN ('long', 'short')),
+      total_target_usd REAL,
+      status TEXT DEFAULT 'planning' CHECK(status IN ('planning', 'active', 'partial', 'completed', 'cancelled')),
+      tranches_json TEXT NOT NULL DEFAULT '[]',
+      stop_loss REAL,
+      stop_loss_note TEXT,
+      take_profit REAL,
+      take_profit_note TEXT,
+      scenario TEXT,
+      rationale TEXT,
+      source_report TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+    )
+  `);
+
+  // === 新表：宏观事件日历 ===
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS macro_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_name TEXT NOT NULL,
+      event_date TEXT NOT NULL,
+      event_type TEXT DEFAULT 'data' CHECK(event_type IN ('data', 'policy', 'earnings', 'geopolitical', 'other')),
+      importance TEXT DEFAULT 'medium' CHECK(importance IN ('high', 'medium', 'low')),
+      affected_assets TEXT,
+      expected_impact TEXT,
+      actual_result TEXT,
+      notes TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+    )
+  `);
+
+  // === 新表：宏观指标 ===
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS macro_indicators (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      indicator_name TEXT NOT NULL,
+      value REAL NOT NULL,
+      source TEXT,
+      timestamp INTEGER NOT NULL,
+      UNIQUE(indicator_name, timestamp)
+    )
+  `);
+
+  // 迁移 assets 表 CHECK 约束（如果旧表存在且不含新分类）
+  runAssetsMigration();
+
   const alertCount = db.prepare('SELECT COUNT(*) as count FROM price_alerts').get() as { count: number };
   if (alertCount.count === 0) {
     db.prepare(`
@@ -214,6 +331,83 @@ export function initDatabase() {
   }
 
   logger.info('数据库初始化完成');
+}
+
+/**
+ * 迁移 assets 表以支持新的资产分类
+ * SQLite 不支持 ALTER CHECK，需要重建表
+ */
+function runAssetsMigration() {
+  try {
+    // 检查当前 assets 表是否已支持 bond 分类
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='assets'").get() as any;
+    if (!tableInfo || !tableInfo.sql) return;
+
+    // 如果已包含 bond，则无需迁移
+    if (tableInfo.sql.includes("'bond'")) return;
+
+    logger.info('开始迁移 assets 表以支持新资产分类...');
+
+    db.transaction(() => {
+      // 1. 创建新表
+      db.exec(`
+        CREATE TABLE assets_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold', 'bond', 'commodity', 'reit', 'cash')),
+          symbol TEXT NOT NULL,
+          name TEXT NOT NULL,
+          quantity REAL NOT NULL DEFAULT 0,
+          cost_price REAL NOT NULL DEFAULT 0,
+          cost_currency TEXT DEFAULT 'USD',
+          notes TEXT,
+          created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+          updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+        )
+      `);
+
+      // 2. 复制数据
+      db.exec('INSERT INTO assets_new SELECT * FROM assets');
+
+      // 3. 删除旧表
+      db.exec('DROP TABLE assets');
+
+      // 4. 重命名新表
+      db.exec('ALTER TABLE assets_new RENAME TO assets');
+    })();
+
+    logger.info('assets 表迁移完成');
+
+    // 同样迁移 price_alerts 表
+    const alertsInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='price_alerts'").get() as any;
+    if (alertsInfo && alertsInfo.sql && !alertsInfo.sql.includes("'bond'")) {
+      logger.info('开始迁移 price_alerts 表...');
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE price_alerts_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold', 'bond', 'commodity', 'reit')),
+            direction TEXT NOT NULL CHECK(direction IN ('buy', 'sell')),
+            trigger_price REAL NOT NULL,
+            currency TEXT DEFAULT 'USD',
+            enabled INTEGER DEFAULT 1,
+            cooldown_minutes INTEGER DEFAULT 60,
+            last_triggered_at INTEGER,
+            notes TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+          )
+        `);
+        db.exec('INSERT INTO price_alerts_new SELECT * FROM price_alerts');
+        db.exec('DROP TABLE price_alerts');
+        db.exec('ALTER TABLE price_alerts_new RENAME TO price_alerts');
+      })();
+      logger.info('price_alerts 表迁移完成');
+    }
+  } catch (error) {
+    logger.error('资产表迁移失败:', error);
+  }
 }
 
 process.on('SIGINT', () => {

@@ -4,8 +4,9 @@ import pricesRouter from './prices';
 import portfolioRouter from './portfolio';
 import rebalanceRouter from './rebalance';
 import roadmapRouter from './roadmap';
-import alertsRouter from './alerts';
-import advisorRouter from './advisor';
+import indicatorsRouter from './indicators';
+import plansRouter from './plans';
+import eventsRouter from './events';
 
 const router = express.Router();
 
@@ -18,27 +19,14 @@ router.get('/health', (req, res) => {
   });
 });
 
-// 资产管理智能体分析（直接挂载避免路由冲突）
-router.post('/advisor/analyze', async (req, res) => {
-  try {
-    const { AdvisorAgentService } = await import('../services/AdvisorAgentService');
-    const agent = new AdvisorAgentService();
-    const result = await agent.runAnalysis();
-    res.json({ success: true, data: result });
-  } catch (error) {
-    const { logger } = await import('../lib/logger');
-    logger.error('智能体分析失败:', error);
-    res.status(500).json({ success: false, error: '分析失败' });
-  }
-});
-
 // 注册子路由
 router.use('/assets', assetsRouter);
 router.use('/prices', pricesRouter);
 router.use('/portfolio', portfolioRouter);
 router.use('/rebalance', rebalanceRouter);
-router.use('/alerts', alertsRouter);
-router.use('/advisor', advisorRouter);
+router.use('/indicators', indicatorsRouter);
+router.use('/plans', plansRouter);
+router.use('/events', eventsRouter);
 router.use('/', roadmapRouter);
 
 // 测试 Telegram 消息发送
@@ -54,14 +42,14 @@ router.post('/notify/test', async (req, res) => {
   }
 });
 
-// 汇率API（简单实现）
+// 汇率API
 router.get('/exchange-rate', async (req, res) => {
   try {
     const { ExchangeRateService } = await import('../services/ExchangeRateService');
     const exchangeRateService = new ExchangeRateService();
-    
+
     const rateInfo = await exchangeRateService.getCurrentRate();
-    
+
     res.json({
       success: true,
       data: {
