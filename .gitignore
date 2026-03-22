@@ -66,3 +66,6 @@ temp/
 *.tar.gz
 .cache/
 .cursor/
+# Learning system observations (local data, don't commit)
+.claude/learning/observations.jsonl
+.claude/learning/observations.jsonl.*.bak
