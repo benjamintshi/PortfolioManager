@@ -159,7 +159,7 @@ router.get('/risk', async (req, res) => {
     const days = parseInt(req.query.days as string) || 30;
     const history = portfolioService.getPortfolioHistory(days);
 
-    const MIN_HISTORY_DAYS = 30;
+    const MIN_HISTORY_DAYS = 14;
     const MAX_ABS_DAILY_RETURN = 0.3; // 单日收益超过 ±30% 视为被大额现金流污染
     const MIN_RETURN_OBSERVATIONS = 10;
     

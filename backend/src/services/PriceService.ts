@@ -3,6 +3,7 @@ const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey'
 import axios from 'axios';
 import { db } from '../database';
 import { logger } from '../lib/logger';
+import { binanceWs } from './BinanceWebSocket';
 
 export interface PriceData {
   symbol: string;
@@ -12,82 +13,68 @@ export interface PriceData {
   timestamp: number;
 }
 
-export class PriceService {
-  private binanceApiUrl = process.env.BINANCE_API_URL || 'http://localhost:4001';
+const WS_PRICE_MAX_AGE_MS = 60_000; // WebSocket 价格超过 60s 视为过期
 
+export class PriceService {
   /**
-   * 获取加密货币价格（从binance-data-infra获取）
+   * 获取加密货币价格
+   * 优先级: WebSocket 实时推送 → Binance REST → Bybit REST
    */
   async getCryptoPrice(symbol: string): Promise<PriceData | null> {
-    try {
-      // 规范化symbol格式：如果不是以USDT结尾，就加上USDT
-      const binanceSymbol = symbol.endsWith('USDT') ? symbol : `${symbol}USDT`;
-      
-      // 验证symbol格式
-      if (!/^[A-Z]{3,10}USDT$/.test(binanceSymbol)) {
-        logger.error(`无效的Binance符号格式: ${binanceSymbol}`);
-        return null;
-      }
-      
-      logger.debug(`尝试获取加密货币价格: ${binanceSymbol}`);
-      
-      const response = await axios.get(`${this.binanceApiUrl}/api/price/${binanceSymbol}`, {
-        timeout: 5000
-      });
-      
-      if (response.data && response.data.price) {
-        const price = parseFloat(response.data.price);
-        if (isNaN(price) || price <= 0) {
-          logger.error(`无效的价格数据: ${response.data.price}`);
-          return null;
-        }
-        
-        return {
-          symbol: symbol,
-          price: price,
-          currency: 'USD',
-          source: 'binance',
-          timestamp: Date.now()
-        };
-      }
-      
-      logger.warn(`Binance返回空价格数据: ${symbol}`);
-      return null;
-    } catch (error) {
-      if (error.response?.status === 400) {
-        logger.error(`Binance API错误: Invalid symbol ${symbol}`);
-        return null;
-      }
-      
-      logger.error(`获取加密货币价格失败 ${symbol}:`, error);
-      
-      // 回退1: Binance公开API
-      const binanceSymbol = symbol.endsWith('USDT') ? symbol : `${symbol}USDT`;
-      try {
-        const response = await axios.get(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`, { timeout: 5000 });
-        if (response.data?.price) {
-          const price = parseFloat(response.data.price);
-          if (price > 0) return { symbol, price, currency: 'USD', source: 'binance-api', timestamp: Date.now() };
-        }
-      } catch (e: any) {
-        logger.debug(`Binance API fallback失败 ${binanceSymbol}: ${e.response?.status || e.message}`);
-      }
-      
-      // 回退2: Bybit API（部分币Binance没有但Bybit有）
-      try {
-        const response = await axios.get(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${binanceSymbol}`, { timeout: 5000 });
-        const list = response.data?.result?.list;
-        if (list?.[0]?.lastPrice) {
-          const price = parseFloat(list[0].lastPrice);
-          if (price > 0) return { symbol, price, currency: 'USD', source: 'bybit-api', timestamp: Date.now() };
-        }
-      } catch (e: any) {
-        logger.debug(`Bybit API fallback失败 ${binanceSymbol}: ${e.message}`);
-      }
-      
-      logger.error(`所有API均无法获取 ${symbol} 价格`);
+    const binanceSymbol = symbol.endsWith('USDT') ? symbol : `${symbol}USDT`;
+
+    if (!/^[A-Z]{3,10}USDT$/.test(binanceSymbol)) {
+      logger.error(`无效的Binance符号格式: ${binanceSymbol}`);
       return null;
     }
+
+    // 优先从 WebSocket 缓存读取
+    const wsData = binanceWs.getPrice(binanceSymbol);
+    if (wsData && (Date.now() - wsData.timestamp) < WS_PRICE_MAX_AGE_MS) {
+      return {
+        symbol,
+        price: wsData.price,
+        currency: 'USD',
+        source: 'binance-ws',
+        timestamp: wsData.timestamp,
+      };
+    }
+
+    // 回退1: Binance REST API
+    try {
+      const response = await axios.get(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`,
+        { timeout: 5000 },
+      );
+      if (response.data?.price) {
+        const price = parseFloat(response.data.price);
+        if (price > 0) {
+          return { symbol, price, currency: 'USD', source: 'binance-api', timestamp: Date.now() };
+        }
+      }
+    } catch (e: any) {
+      logger.debug(`Binance REST fallback 失败 ${binanceSymbol}: ${e.response?.status || e.message}`);
+    }
+
+    // 回退2: Bybit REST API
+    try {
+      const response = await axios.get(
+        `https://api.bybit.com/v5/market/tickers?category=spot&symbol=${binanceSymbol}`,
+        { timeout: 5000 },
+      );
+      const list = response.data?.result?.list;
+      if (list?.[0]?.lastPrice) {
+        const price = parseFloat(list[0].lastPrice);
+        if (price > 0) {
+          return { symbol, price, currency: 'USD', source: 'bybit-api', timestamp: Date.now() };
+        }
+      }
+    } catch (e: any) {
+      logger.debug(`Bybit REST fallback 失败 ${binanceSymbol}: ${e.message}`);
+    }
+
+    logger.error(`所有数据源均无法获取 ${symbol} 价格`);
+    return null;
   }
 
   /**

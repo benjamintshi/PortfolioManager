@@ -164,7 +164,7 @@ export function getCategoryColor(category: string): string {
 export function getProfitColorClass(profit: number): string {
   if (profit > 0) return 'text-profit';
   if (profit < 0) return 'text-loss';
-  return 'text-muted-foreground';
+  return 'text-neutral-400';
 }
 
 /**

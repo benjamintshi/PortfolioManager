@@ -9,7 +9,8 @@ import { PriceService } from './services/PriceService';
 import { PortfolioService } from './services/PortfolioService';
 import { RebalanceService } from './services/RebalanceService';
 import { NotificationService } from './services/NotificationService';
-// PriceAlertService removed - 做T功能不再需要
+import { binanceWs } from './services/BinanceWebSocket';
+import { MacroIndicatorService } from './services/MacroIndicatorService';
 
 const app = express();
 const port = process.env.PORT || 6002;
@@ -72,6 +73,7 @@ let priceService: PriceService;
 let portfolioService: PortfolioService;
 let rebalanceService: RebalanceService;
 let notificationService: NotificationService;
+let macroIndicatorService: MacroIndicatorService;
 
 // 初始化服务
 function initServices() {
@@ -79,7 +81,8 @@ function initServices() {
   portfolioService = new PortfolioService();
   rebalanceService = new RebalanceService();
   notificationService = new NotificationService();
-  
+  macroIndicatorService = new MacroIndicatorService();
+
   logger.info('服务初始化完成');
 }
 
@@ -116,6 +119,17 @@ function setupCronJobs() {
       // 汇率会在需要时自动更新，这里只是触发一次
     } catch (error) {
       logger.error('定时更新汇率失败:', error);
+    }
+  }, {
+    timezone: 'Asia/Shanghai'
+  });
+
+  // 每2小时更新宏观指标
+  cron.schedule('0 */2 * * *', async () => {
+    try {
+      await macroIndicatorService.fetchAll();
+    } catch (error) {
+      logger.error('定时更新宏观指标失败:', error);
     }
   }, {
     timezone: 'Asia/Shanghai'
@@ -191,16 +205,22 @@ async function startServer() {
     // 设置定时任务
     setupCronJobs();
     
+    // 启动 Binance WebSocket 实时价格
+    binanceWs.start();
+
     // 启动HTTP服务器
     app.listen(port, () => {
       logger.info(`Portfolio Manager Backend 启动成功`);
       logger.info(`服务地址: http://localhost:${port}`);
       logger.info(`API文档: http://localhost:${port}/api/health`);
       
-      // 启动后立即更新一次价格
+      // 启动后立即更新一次价格和宏观指标
       setTimeout(() => {
         priceService.updateAllPrices().catch(error => {
           logger.error('初始价格更新失败:', error);
+        });
+        macroIndicatorService.fetchAll().catch(error => {
+          logger.error('初始宏观指标采集失败:', error);
         });
       }, 5000);
     });
@@ -215,7 +235,7 @@ async function startServer() {
 function setupGracefulShutdown() {
   const shutdown = (signal: string) => {
     logger.info(`收到 ${signal} 信号，开始优雅退出...`);
-    
+    binanceWs.stop();
     process.exit(0);
   };
 

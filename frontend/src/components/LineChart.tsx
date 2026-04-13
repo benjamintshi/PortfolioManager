@@ -44,8 +44,8 @@ export default function LineChart({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
-          <div className="text-sm font-medium text-popover-foreground mb-2">
+        <div className="bg-arena-panel border border-[rgba(100,140,255,0.1)] rounded-lg p-3 shadow-lg">
+          <div className="text-sm font-medium text-neutral-50 mb-2">
             {formatDate(label)}
           </div>
           <div className="space-y-1">
@@ -56,9 +56,9 @@ export default function LineChart({
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: entry.color }}
                   ></div>
-                  <span className="text-sm text-muted-foreground">{entry.name}:</span>
+                  <span className="text-sm text-neutral-400">{entry.name}:</span>
                 </div>
-                <span className="text-sm font-medium text-popover-foreground tabular-nums">
+                <span className="text-sm font-medium text-neutral-50 tabular-nums">
                   {formatCurrency(entry.value, 'USD')}
                 </span>
               </div>
@@ -88,7 +88,7 @@ export default function LineChart({
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ height }}>
+      <div className="flex items-center justify-center text-neutral-400" style={{ height }}>
         暂无数据
       </div>
     )
@@ -112,9 +112,9 @@ export default function LineChart({
           }}
         >
           {showGrid && (
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="hsl(var(--border))" 
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--arena-glass-border)"
               opacity={0.3}
             />
           )}
@@ -122,7 +122,7 @@ export default function LineChart({
           <XAxis
             dataKey="date"
             tickFormatter={formatXAxis}
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--arena-neutral-400)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
@@ -130,7 +130,7 @@ export default function LineChart({
           
           <YAxis
             tickFormatter={formatYAxis}
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--arena-neutral-400)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
@@ -140,7 +140,7 @@ export default function LineChart({
           {showTooltip && (
             <Tooltip 
               content={<CustomTooltip />}
-              cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+              cursor={{ stroke: 'var(--arena-glass-border)', strokeWidth: 1 }}
             />
           )}
           
@@ -165,7 +165,7 @@ export default function LineChart({
                 r: 4, 
                 fill: line.color,
                 strokeWidth: 2,
-                stroke: 'hsl(var(--background))'
+                stroke: 'var(--arena-bg-base)'
               }}
               animationDuration={800}
               connectNulls={false}

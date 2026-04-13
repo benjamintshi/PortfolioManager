@@ -137,36 +137,43 @@ export default function MacroEvents() {
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center ring-1 ring-primary/20">
-            <CalendarDays className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold">宏观事件</h1>
-            <p className="text-sm text-muted-foreground">跟踪影响市场的关键事件</p>
+    <>
+      {/* Hero Section */}
+      <section className="relative pt-16">
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--arena-bg-void)] via-[#0d1117] to-[var(--arena-bg-base)] h-[320px]" />
+        <div className="relative max-w-[1400px] mx-auto px-6 pt-12 pb-4">
+          <div className="flex items-center gap-3 mb-2 animate-fade-in-up">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <CalendarDays className="w-5 h-5 text-white" strokeWidth={2} />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl font-extrabold tracking-tight">
+                <span className="text-gradient-primary">宏观事件</span>
+              </h1>
+              <p className="text-sm text-neutral-400">跟踪影响市场的关键事件</p>
+            </div>
+            <button
+              onClick={() => { setShowForm(true); setForm(emptyForm); setFormError('') }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm text-neutral-300 bg-arena-surface border border-[rgba(100,140,255,0.1)] hover:border-primary/40 hover:text-primary transition-all"
+            >
+              <Plus className="w-4 h-4" /> 添加事件
+            </button>
           </div>
         </div>
-        <button
-          onClick={() => { setShowForm(true); setForm(emptyForm); setFormError('') }}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> 添加事件
-        </button>
-      </div>
+        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
+      </section>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-secondary/40 rounded-xl p-1 w-fit ring-1 ring-border/40">
+      {/* Tabs + Content */}
+      <section className="relative max-w-[1400px] mx-auto px-6 py-6 space-y-4">
+      <div className="flex gap-1 bg-arena-surface rounded-xl p-1 w-fit">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               tab === t.key
-                ? 'bg-primary/15 text-primary ring-1 ring-primary/20'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-primary-soft text-primary'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             {t.label}
@@ -183,12 +190,12 @@ export default function MacroEvents() {
 
       {/* Loading */}
       {loading && events.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">加载中...</div>
+        <div className="text-center py-12 text-neutral-400">加载中...</div>
       )}
 
       {/* Empty */}
       {!loading && filteredEvents.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
+        <div className="text-center py-12 text-neutral-400">
           {tab === 'upcoming' ? '暂无即将到来的事件' : tab === 'past' ? '暂无已过期的事件' : '暂无事件，点击右上角添加'}
         </div>
       )}
@@ -208,8 +215,8 @@ export default function MacroEvents() {
                 within7
                   ? 'border-amber-500/30 bg-amber-500/5'
                   : past
-                    ? 'border-border/40 bg-card/40 opacity-70'
-                    : 'border-border/60 bg-card/80'
+                    ? 'border-[rgba(100,140,255,0.08)] glass opacity-70'
+                    : 'border-[rgba(100,140,255,0.1)] glass'
               }`}
             >
               {/* Main row */}
@@ -218,14 +225,14 @@ export default function MacroEvents() {
                   {/* Expand toggle */}
                   <button
                     onClick={() => hasDetails && setExpandedId(expanded ? null : event.id)}
-                    className={`flex-shrink-0 w-5 h-5 flex items-center justify-center ${hasDetails ? 'text-muted-foreground hover:text-foreground cursor-pointer' : 'text-transparent'}`}
+                    className={`flex-shrink-0 w-5 h-5 flex items-center justify-center ${hasDetails ? 'text-neutral-400 hover:text-neutral-200 cursor-pointer' : 'text-transparent'}`}
                     disabled={!hasDetails}
                   >
                     {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
 
                   {/* Date */}
-                  <div className={`flex-shrink-0 w-24 text-sm font-medium ${within7 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                  <div className={`flex-shrink-0 w-24 text-sm font-medium ${within7 ? 'text-amber-400' : 'text-neutral-400'}`}>
                     {formatDate(event.event_date)}
                   </div>
 
@@ -244,7 +251,7 @@ export default function MacroEvents() {
                     </span>
                     <button
                       onClick={() => handleDelete(event.id)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="p-1.5 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -261,7 +268,7 @@ export default function MacroEvents() {
                     ['实际结果', event.actual_result],
                     ['备注', event.notes],
                   ].filter(([, v]) => v).map(([label, val]) => (
-                    <div key={label as string}><span className="text-muted-foreground">{label}：</span>{val}</div>
+                    <div key={label as string}><span className="text-neutral-400">{label}：</span>{val}</div>
                   ))}
                 </div>
               )}
@@ -270,13 +277,15 @@ export default function MacroEvents() {
         })}
       </div>
 
+      </section>
+
       {/* Add Event Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border/60 shadow-xl w-full max-w-lg mx-4 p-6">
+          <div className="relative glass-strong rounded-xl p-6 max-w-lg w-full mx-4 border border-[rgba(100,140,255,0.15)] shadow-glow-md">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">添加宏观事件</h2>
-              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground">
+              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-arena-hover text-neutral-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -288,33 +297,33 @@ export default function MacroEvents() {
             <div className="space-y-4">
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-muted-foreground">事件名称 *</label>
+                <label className="block text-sm font-medium mb-1.5 text-neutral-400">事件名称 *</label>
                 <input
                   type="text"
                   value={form.event_name}
                   onChange={e => setForm({ ...form, event_name: e.target.value })}
                   placeholder="如：美联储议息会议"
-                  className="w-full px-3 py-2 bg-secondary/40 border border-border/60 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full px-3 py-2 bg-arena-surface border border-[rgba(100,140,255,0.1)] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                 />
               </div>
 
               {/* Date + Type + Importance row */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium mb-1.5 text-muted-foreground">日期 *</label>
+                  <label className="block text-sm font-medium mb-1.5 text-neutral-400">日期 *</label>
                   <input
                     type="date"
                     value={form.event_date}
                     onChange={e => setForm({ ...form, event_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-secondary/40 border border-border/60 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="w-full px-3 py-2 bg-arena-surface border border-[rgba(100,140,255,0.1)] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5 text-muted-foreground">类型</label>
+                  <label className="block text-sm font-medium mb-1.5 text-neutral-400">类型</label>
                   <select
                     value={form.event_type}
                     onChange={e => setForm({ ...form, event_type: e.target.value })}
-                    className="w-full px-3 py-2 bg-secondary/40 border border-border/60 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="w-full px-3 py-2 bg-arena-surface border border-[rgba(100,140,255,0.1)] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                   >
                     <option value="data">数据</option>
                     <option value="policy">政策</option>
@@ -324,11 +333,11 @@ export default function MacroEvents() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5 text-muted-foreground">重要性</label>
+                  <label className="block text-sm font-medium mb-1.5 text-neutral-400">重要性</label>
                   <select
                     value={form.importance}
                     onChange={e => setForm({ ...form, importance: e.target.value })}
-                    className="w-full px-3 py-2 bg-secondary/40 border border-border/60 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="w-full px-3 py-2 bg-arena-surface border border-[rgba(100,140,255,0.1)] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                   >
                     <option value="high">高</option>
                     <option value="medium">中</option>
@@ -339,37 +348,37 @@ export default function MacroEvents() {
 
               {/* Affected assets */}
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-muted-foreground">影响资产</label>
+                <label className="block text-sm font-medium mb-1.5 text-neutral-400">影响资产</label>
                 <input
                   type="text"
                   value={form.affected_assets}
                   onChange={e => setForm({ ...form, affected_assets: e.target.value })}
                   placeholder="如：BTC, 美股, 黄金"
-                  className="w-full px-3 py-2 bg-secondary/40 border border-border/60 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full px-3 py-2 bg-arena-surface border border-[rgba(100,140,255,0.1)] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                 />
               </div>
 
               {/* Expected impact */}
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-muted-foreground">预期影响</label>
+                <label className="block text-sm font-medium mb-1.5 text-neutral-400">预期影响</label>
                 <textarea
                   value={form.expected_impact}
                   onChange={e => setForm({ ...form, expected_impact: e.target.value })}
                   placeholder="对投资组合的预期影响..."
                   rows={2}
-                  className="w-full px-3 py-2 bg-secondary/40 border border-border/60 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+                  className="w-full px-3 py-2 bg-arena-surface border border-[rgba(100,140,255,0.1)] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
                 />
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-muted-foreground">备注</label>
+                <label className="block text-sm font-medium mb-1.5 text-neutral-400">备注</label>
                 <textarea
                   value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
                   placeholder="其他备注..."
                   rows={2}
-                  className="w-full px-3 py-2 bg-secondary/40 border border-border/60 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+                  className="w-full px-3 py-2 bg-arena-surface border border-[rgba(100,140,255,0.1)] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
                 />
               </div>
             </div>
@@ -378,14 +387,14 @@ export default function MacroEvents() {
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="px-4 py-2 text-sm font-medium text-neutral-400 hover:text-neutral-200 transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleAdd}
                 disabled={loading}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {loading ? '保存中...' : '保存'}
               </button>
@@ -393,6 +402,6 @@ export default function MacroEvents() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

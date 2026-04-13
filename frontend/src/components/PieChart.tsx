@@ -28,24 +28,24 @@ export default function PieChart({
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+        <div className="bg-arena-panel border border-[rgba(100,140,255,0.1)] rounded-lg p-3 shadow-lg">
           <div className="flex items-center space-x-2 mb-2">
             <div
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: data.color }}
             ></div>
-            <span className="font-medium text-popover-foreground">{data.name}</span>
+            <span className="font-medium text-neutral-50">{data.name}</span>
           </div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between space-x-8">
-              <span className="text-muted-foreground">金额:</span>
-              <span className="text-popover-foreground tabular-nums">
+              <span className="text-neutral-400">金额:</span>
+              <span className="text-neutral-50 tabular-nums">
                 {formatCurrency(data.amount, 'USD')}
               </span>
             </div>
             <div className="flex justify-between space-x-8">
-              <span className="text-muted-foreground">占比:</span>
-              <span className="text-popover-foreground">
+              <span className="text-neutral-400">占比:</span>
+              <span className="text-neutral-50">
                 {data.value.toFixed(1)}%
               </span>
             </div>
@@ -67,8 +67,8 @@ export default function PieChart({
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: entry.color }}
             ></div>
-            <span className="text-sm text-foreground">{entry.value}</span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-neutral-50">{entry.value}</span>
+            <span className="text-sm text-neutral-400">
               {entry.payload.value.toFixed(1)}%
             </span>
           </div>
@@ -79,7 +79,7 @@ export default function PieChart({
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
+      <div className="flex items-center justify-center h-64 text-neutral-400">
         暂无数据
       </div>
     )

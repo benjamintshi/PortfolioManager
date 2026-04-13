@@ -2,187 +2,364 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════
+   ARENA Design System — Portfolio Manager Edition
+   ═══════════════════════════════════════════════ */
+
 @layer base {
   :root {
-    --background: 224 30% 6%;
-    --foreground: 210 25% 96%;
-    --card: 224 28% 8%;
-    --card-foreground: 210 25% 96%;
-    --popover: 224 28% 9%;
-    --popover-foreground: 210 25% 96%;
-    --primary: 166 76% 42%;
-    --primary-foreground: 224 30% 6%;
-    --secondary: 224 22% 12%;
-    --secondary-foreground: 210 25% 96%;
-    --muted: 224 20% 14%;
-    --muted-foreground: 215 16% 58%;
-    --accent: 224 22% 14%;
-    --accent-foreground: 210 25% 96%;
-    --destructive: 0 63% 42%;
+    /* ── Background ── */
+    --arena-bg-void: #04060e;
+    --arena-bg-base: #080c1a;
+    --arena-bg-surface: #161d3e;
+    --arena-bg-elevated: #0d1225;
+    --arena-bg-panel: #111832;
+    --arena-bg-hover: #1c2550;
+
+    /* ── Primary (Blue) ── */
+    --arena-primary: #3b82f6;
+    --arena-primary-dim: #1d4ed8;
+    --arena-primary-soft: #3b82f61f;
+    --arena-primary-glow: #3b82f680;
+
+    /* ── Accent (Violet) ── */
+    --arena-accent: #8b5cf6;
+    --arena-accent-dim: #6d28d9;
+    --arena-accent-soft: #8b5cf61f;
+    --arena-accent-glow: #8b5cf680;
+
+    /* ── Semantic ── */
+    --arena-success: #10b981;
+    --arena-success-soft: #10b9811f;
+    --arena-success-glow: #10b98180;
+    --arena-danger: #ef4444;
+    --arena-danger-soft: #ef44441f;
+    --arena-danger-glow: #ef444480;
+    --arena-hot: #ec4899;
+    --arena-hot-soft: #ec48991f;
+    --arena-hot-glow: #ec489980;
+
+    /* ── Neutral (Slate) ── */
+    --arena-neutral-50: #f8fafc;
+    --arena-neutral-100: #e2e8f0;
+    --arena-neutral-200: #cbd5e1;
+    --arena-neutral-300: #94a3b8;
+    --arena-neutral-400: #64748b;
+    --arena-neutral-500: #475569;
+    --arena-neutral-600: #334155;
+    --arena-neutral-700: #1e293b;
+    --arena-neutral-800: #0f172a;
+
+    /* ── Chart palette ── */
+    --arena-chart-1: #3b82f6;
+    --arena-chart-2: #8b5cf6;
+    --arena-chart-3: #06b6d4;
+    --arena-chart-4: #10b981;
+    --arena-chart-5: #f59e0b;
+    --arena-chart-6: #ec4899;
+    --arena-chart-7: #f97316;
+
+    /* ── Glass ── */
+    --arena-glass-bg: #101630b8;
+    --arena-glass-blur: 20px;
+    --arena-glass-border: #648cff1f;
+    --arena-glass-shine: #ffffff08;
+
+    /* ── Gradients ── */
+    --arena-gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    --arena-gradient-success: linear-gradient(135deg, #10b981, #06b6d4);
+    --arena-gradient-hot: linear-gradient(135deg, #ec4899, #f97316);
+    --arena-gradient-surface: linear-gradient(180deg, #3b82f60d 0%, transparent 100%);
+    --arena-gradient-radial: radial-gradient(ellipse at 50% 0%, #3b82f626 0%, transparent 60%);
+
+    /* ── Glow ── */
+    --arena-glow-blue: #3b82f666;
+    --arena-glow-violet: #8b5cf666;
+    --arena-glow-cyan: #06b6d466;
+    --arena-glow-emerald: #10b98166;
+    --arena-glow-gold: #f59e0b66;
+
+    /* ── Shadows ── */
+    --arena-shadow-sm: 0 2px 8px #0000004d;
+    --arena-shadow-md: 0 4px 24px #0006;
+    --arena-shadow-lg: 0 8px 48px #00000080;
+    --arena-shadow-glow-sm: 0 0 15px #3b82f626;
+    --arena-shadow-glow-md: 0 0 30px #3b82f633;
+    --arena-shadow-glow-lg: 0 0 60px #3b82f640;
+
+    /* ── Radius ── */
+    --arena-radius-sm: 6px;
+    --arena-radius-md: 10px;
+    --arena-radius-lg: 16px;
+    --arena-radius-xl: 24px;
+    --arena-radius-full: 9999px;
+
+    /* ── Spacing ── */
+    --arena-space-page: clamp(16px, 4vw, 48px);
+    --arena-space-card: clamp(16px, 2vw, 24px);
+    --arena-space-section: clamp(32px, 6vw, 80px);
+
+    /* ── Typography ── */
+    --arena-font-body: "Geist", system-ui, -apple-system, sans-serif;
+    --arena-font-display: "Geist", system-ui, -apple-system, sans-serif;
+    --arena-font-data: "Geist Mono", "SF Mono", "Fira Code", monospace;
+    --arena-font-mono: "Geist Mono", "SF Mono", "Fira Code", monospace;
+
+    /* ── Legacy compat (旧页面迁移前的过渡) ── */
+    --background: 228 50% 5%;
+    --foreground: 213 31% 91%;
+    --card: 228 42% 7%;
+    --card-foreground: 213 31% 91%;
+    --popover: 228 42% 8%;
+    --popover-foreground: 213 31% 91%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 228 50% 5%;
+    --secondary: 228 30% 12%;
+    --secondary-foreground: 213 31% 91%;
+    --muted: 228 25% 14%;
+    --muted-foreground: 215 20% 50%;
+    --accent: 228 30% 14%;
+    --accent-foreground: 213 31% 91%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 224 18% 18%;
-    --input: 224 20% 14%;
-    --ring: 166 76% 42%;
+    --border: 228 20% 16%;
+    --input: 228 25% 14%;
+    --ring: 217 91% 60%;
     --radius: 0.625rem;
+
+    /* ── Timing ── */
+    --arena-duration-fast: 0.15s;
+    --arena-duration-base: 0.25s;
+    --arena-duration-enter: 0.4s;
+    --arena-duration-slow: 0.5s;
+    --arena-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --arena-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+
+  * {
+    border-color: var(--arena-glass-border);
+  }
+
+  body {
+    background: var(--arena-bg-base);
+    color: var(--arena-neutral-200);
+    font-family: var(--arena-font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--arena-neutral-600); border-radius: var(--arena-radius-full); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--arena-neutral-400); }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+/* ═══════════════════════════════════════════════
+   Component Classes
+   ═══════════════════════════════════════════════ */
+
+@layer components {
+  /* ── Glass ── */
+  .glass {
+    background: var(--arena-glass-bg);
+    backdrop-filter: blur(var(--arena-glass-blur));
+    -webkit-backdrop-filter: blur(var(--arena-glass-blur));
+    border: 1px solid var(--arena-glass-border);
   }
 
-  /* 自定义滚动条 */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  .glass-strong {
+    backdrop-filter: blur(30px) saturate(1.2);
+    -webkit-backdrop-filter: blur(30px) saturate(1.2);
+    background: #101630e0;
+    border: 1px solid #648cff26;
   }
 
-  ::-webkit-scrollbar-track {
-    @apply bg-secondary;
+  /* ── Ambient background ── */
+  .arena-ambient {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
   }
 
-  ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground rounded-md;
+  .arena-ambient .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.3;
+    animation: orb-drift 20s ease-in-out infinite;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-foreground;
+  .arena-ambient .orb-1 {
+    background: radial-gradient(circle, #3b82f626, transparent 70%);
+    width: 500px; height: 500px;
+    top: -10%; left: -5%;
+    animation-delay: 0s;
   }
 
-  /* 数字字体 */
-  .tabular-nums {
-    font-feature-settings: 'tnum' on, 'lnum' on;
-    font-variant-numeric: tabular-nums lining-nums;
+  .arena-ambient .orb-2 {
+    background: radial-gradient(circle, #8b5cf61f, transparent 70%);
+    width: 400px; height: 400px;
+    top: 40%; right: -8%;
+    animation-delay: -7s;
   }
 
-  /* 动画效果 */
-  .animate-pulse-fast {
-    animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  .arena-ambient .orb-3 {
+    background: radial-gradient(circle, #06b6d41a, transparent 70%);
+    width: 350px; height: 350px;
+    bottom: -5%; left: 30%;
+    animation-delay: -14s;
   }
 
-  .animate-bounce-slow {
-    animation: bounce 2s infinite;
+  /* ── Grid overlay ── */
+  .arena-grid {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(#3b82f608 1px, transparent 1px),
+      linear-gradient(90deg, #3b82f608 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(at 50% 30%, #000 20%, transparent 70%);
+    -webkit-mask-image: radial-gradient(at 50% 30%, #000 20%, transparent 70%);
   }
 
-  /* 投资组合相关样式 */
-  .profit-positive {
-    @apply text-profit;
+  /* ── Scan line effect ── */
+  .scan-line {
+    position: relative;
+    overflow: hidden;
   }
 
-  .profit-negative {
-    @apply text-loss;
+  .scan-line::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, #3b82f60f, transparent);
+    animation: scan-sweep 4s ease-in-out infinite;
   }
 
-  .category-crypto {
-    @apply text-crypto;
+  /* ── Text gradients ── */
+  .text-gradient-primary {
+    background: var(--arena-gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  .category-stock {
-    @apply text-stock;
+  .text-gradient-success {
+    background: var(--arena-gradient-success);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  .category-gold {
-    @apply text-gold;
+  .text-gradient-hot {
+    background: var(--arena-gradient-hot);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  /* 图表相关样式 */
-  .recharts-wrapper {
-    font-family: inherit;
+  /* ── Data font ── */
+  .font-data {
+    font-family: var(--arena-font-data);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
   }
 
-  .recharts-tooltip-wrapper {
-    outline: none;
+  /* ── Glow borders ── */
+  .glow-border {
+    border: 1px solid #3b82f633;
+    box-shadow: inset 0 0 20px #3b82f60d, 0 0 20px #3b82f60d;
   }
 
+  .glow-border-success {
+    border: 1px solid #10b98140;
+    box-shadow: inset 0 0 20px #10b9810d, 0 0 20px #10b9810d;
+  }
+
+  .glow-border-danger {
+    border: 1px solid #ef444440;
+    box-shadow: inset 0 0 20px #ef44440d, 0 0 20px #ef44440d;
+  }
+
+  /* ── Stat card ── */
+  .stat-card {
+    @apply glass scan-line;
+    border-radius: var(--arena-radius-lg);
+    padding: var(--arena-space-card);
+    border: 1px solid rgba(100, 140, 255, 0.1);
+    transition: border-color var(--arena-duration-base) var(--arena-ease-out),
+                box-shadow var(--arena-duration-base) var(--arena-ease-out);
+  }
+
+  .stat-card:hover {
+    border-color: rgba(100, 140, 255, 0.25);
+    box-shadow: var(--arena-shadow-glow-sm);
+  }
+
+  /* ── Recharts ── */
+  .recharts-wrapper { font-family: var(--arena-font-data); }
+  .recharts-tooltip-wrapper { outline: none; }
   .recharts-default-tooltip {
-    @apply bg-popover border border-border rounded-md shadow-lg;
+    background: var(--arena-bg-panel) !important;
+    border: 1px solid var(--arena-glass-border) !important;
+    border-radius: var(--arena-radius-md) !important;
+    box-shadow: var(--arena-shadow-lg) !important;
   }
+  .recharts-tooltip-label { color: var(--arena-neutral-50) !important; font-weight: 600; }
+  .recharts-tooltip-item { color: var(--arena-neutral-300) !important; }
 
-  .recharts-tooltip-label {
-    @apply text-foreground font-medium;
-  }
+  /* ── Category colors ── */
+  .profit-positive { color: var(--arena-success); }
+  .profit-negative { color: var(--arena-danger); }
+}
 
-  .recharts-tooltip-item {
-    @apply text-muted-foreground;
-  }
+/* ═══════════════════════════════════════════════
+   Keyframes
+   ═══════════════════════════════════════════════ */
 
-  /* 表格样式 */
-  .table-header {
-    @apply bg-secondary/40 border-b border-border/60;
-  }
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0) scale(1); }
+  25% { transform: translate(30px, -20px) scale(1.05); }
+  50% { transform: translate(-20px, 15px) scale(0.95); }
+  75% { transform: translate(15px, 25px) scale(1.02); }
+}
 
-  .table-row {
-    @apply border-b border-border/40 hover:bg-secondary/20 transition-colors;
-  }
+@keyframes scan-sweep {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
 
-  .table-cell {
-    @apply px-4 py-3 text-sm;
-  }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
 
-  /* 卡片样式 */
-  .card-gradient {
-    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%);
-  }
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 
-  .card-hover {
-    @apply transition-all duration-200 hover:shadow-lg hover:scale-105;
-  }
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
 
-  /* 按钮变种 */
-  .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors;
-  }
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 #10b98180; }
+  70% { box-shadow: 0 0 0 10px #10b98100; }
+  100% { box-shadow: 0 0 0 0 #10b98100; }
+}
 
-  .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors;
-  }
-
-  .btn-destructive {
-    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors;
-  }
-
-  /* 响应式文字大小 */
-  .text-responsive-sm {
-    @apply text-xs md:text-sm;
-  }
-
-  .text-responsive-base {
-    @apply text-sm md:text-base;
-  }
-
-  .text-responsive-lg {
-    @apply text-base md:text-lg;
-  }
-
-  .text-responsive-xl {
-    @apply text-lg md:text-xl;
-  }
-
-  .text-responsive-2xl {
-    @apply text-xl md:text-2xl;
-  }
-
-  /* 加载动画 */
-  .loading-dots::after {
-    content: '';
-    animation: dots 2s infinite;
-  }
-
-  @keyframes dots {
-    0%, 20% { content: ''; }
-    40% { content: '.'; }
-    60% { content: '..'; }
-    80%, 100% { content: '...'; }
-  }
-
-  /* 工具提示样式 */
-  .tooltip {
-    @apply bg-popover text-popover-foreground border border-border rounded-md px-2 py-1 text-xs shadow-lg;
-  }
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
