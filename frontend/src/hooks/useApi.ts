@@ -342,6 +342,56 @@ export const eventsApi = {
 };
 
 /**
+ * 平台API
+ */
+export const platformsApi = {
+  getAll: () => api.get<ApiResponse>('/platforms'),
+  create: (data: { name: string; displayName: string; type: string; icon?: string }) =>
+    api.post<ApiResponse>('/platforms', data),
+  update: (id: number, data: any) => api.put<ApiResponse>(`/platforms/${id}`, data),
+  delete: (id: number) => api.delete<ApiResponse>(`/platforms/${id}`),
+  setApiKey: (id: number, data: { apiKey: string; apiSecret: string; apiPassphrase?: string }) =>
+    api.put<ApiResponse>(`/platforms/${id}/api-key`, data),
+  deleteApiKey: (id: number) => api.delete<ApiResponse>(`/platforms/${id}/api-key`),
+  sync: (id: number) => api.post<ApiResponse>(`/platforms/${id}/sync`),
+  getSyncLogs: (id: number, limit?: number) =>
+    api.get<ApiResponse>(`/platforms/${id}/sync-logs`, { params: { limit } }),
+  addSubAccount: (platformId: number, data: { name: string; displayName: string; accountType: string }) =>
+    api.post<ApiResponse>(`/platforms/${platformId}/sub-accounts`, data),
+  updateSubAccount: (id: number, data: any) =>
+    api.put<ApiResponse>(`/platforms/sub-accounts/${id}`, data),
+  deleteSubAccount: (id: number) =>
+    api.delete<ApiResponse>(`/platforms/sub-accounts/${id}`),
+};
+
+/**
+ * 持仓API
+ */
+export const holdingsApi = {
+  getAll: (params?: { platform_id?: number; sub_account_id?: number; category?: string; symbol?: string }) =>
+    api.get<ApiResponse>('/holdings', { params }),
+  create: (data: {
+    sub_account_id: number; category: string; symbol: string; name: string;
+    quantity: number; cost_price: number; cost_currency?: string; notes?: string;
+  }) => api.post<ApiResponse>('/holdings', data),
+  update: (id: number, data: any) => api.put<ApiResponse>(`/holdings/${id}`, data),
+  delete: (id: number) => api.delete<ApiResponse>(`/holdings/${id}`),
+};
+
+/**
+ * 转账API
+ */
+export const transfersApi = {
+  getAll: () => api.get<ApiResponse>('/transfers'),
+  create: (data: {
+    from_sub_account_id: number; to_sub_account_id: number;
+    symbol: string; quantity: number; fee?: number; fee_symbol?: string;
+    notes?: string; executed_at: number;
+  }) => api.post<ApiResponse>('/transfers', data),
+  delete: (id: number) => api.delete<ApiResponse>(`/transfers/${id}`),
+};
+
+/**
  * 系统API
  */
 export const systemApi = {

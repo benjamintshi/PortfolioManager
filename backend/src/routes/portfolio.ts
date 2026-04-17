@@ -6,10 +6,20 @@ const router = express.Router();
 const portfolioService = new PortfolioService();
 
 // 获取组合概览
+router.get('/by-platform', async (req, res) => {
+  try {
+    const data = await portfolioService.getByPlatform();
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('获取平台分布失败:', error);
+    res.status(500).json({ success: false, error: '获取平台分布失败' });
+  }
+});
+
 router.get('/summary', async (req, res) => {
   try {
     const summary = await portfolioService.getPortfolioSummary();
-    
+
     res.json({
       success: true,
       data: summary

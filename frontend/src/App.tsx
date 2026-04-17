@@ -1,12 +1,11 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
-import Assets from './pages/Assets'
-import Rebalance from './pages/Rebalance'
-import Analysis from './pages/Analysis'
-import Roadmap from './pages/Roadmap'
-import InvestmentPlans from './pages/InvestmentPlans'
-import MacroEvents from './pages/MacroEvents'
+import Accounts from './pages/Accounts'
+import Holdings from './pages/Holdings'
+import Allocation from './pages/Allocation'
+import Analytics from './pages/Analytics'
+import Market from './pages/Market'
 
 function App() {
   return (
@@ -24,12 +23,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
-            <Route path="assets" element={<Assets />} />
-            <Route path="rebalance" element={<Rebalance />} />
-            <Route path="analysis" element={<Analysis />} />
-            <Route path="roadmap" element={<Roadmap />} />
-            <Route path="plans" element={<InvestmentPlans />} />
-            <Route path="events" element={<MacroEvents />} />
+            <Route path="accounts" element={<Accounts />} />
+            <Route path="holdings" element={<Holdings />} />
+            <Route path="allocation" element={<Allocation />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="market" element={<Market />} />
           </Route>
         </Routes>
       </div>

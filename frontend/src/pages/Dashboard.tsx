@@ -5,11 +5,11 @@ import {
   Minus,
   RefreshCw,
   Wallet,
-  Receipt,
-  Percent,
   BarChart3,
+  Activity,
+  AlertTriangle,
 } from 'lucide-react'
-import { portfolioApi, exchangeRateApi, useApi } from '@/hooks/useApi'
+import { portfolioApi, exchangeRateApi, indicatorsApi, useApi, api } from '@/hooks/useApi'
 import {
   formatCurrency,
   formatPercent,
@@ -19,18 +19,8 @@ import {
 } from '@/utils/format'
 import PieChart from '@/components/PieChart'
 import LineChart from '@/components/LineChart'
-import MacroIndicators from '@/components/MacroIndicators'
 
-interface PortfolioSummary {
-  totalValueUsd: number
-  totalValueCny: number
-  totalCostUsd: number
-  totalProfitUsd: number
-  totalProfitPercent: number
-  categories: Record<string, CategorySummary>
-  assets: any[]
-  lastUpdated: number
-}
+// ── Types ──
 
 interface CategorySummary {
   valueUsd: number
@@ -40,6 +30,43 @@ interface CategorySummary {
   percentage: number
   count: number
 }
+
+interface PortfolioSummary {
+  totalValueUsd: number
+  totalValueCny: number
+  totalCostUsd: number
+  totalProfitUsd: number
+  totalProfitPercent: number
+  categories: Record<string, CategorySummary>
+  mergedAssets: unknown[]
+  lastUpdated: number
+}
+
+interface PlatformItem {
+  displayName: string
+  icon: string
+  valueUsd: number
+  profitUsd: number
+  profitPercent: number
+  percentage: number
+  holdingsCount: number
+}
+
+interface MacroIndicator {
+  indicator_name: string
+  value: number
+  source: string | null
+  timestamp: number
+}
+
+// ── Palette for platform pie slices ──
+
+const PLATFORM_COLORS = [
+  '#3b82f6', '#8b5cf6', '#06b6d4', '#10b981',
+  '#f59e0b', '#ec4899', '#f97316', '#14b8a6',
+]
+
+// ── Sub-components ──
 
 function StatCard({
   label,
@@ -87,27 +114,83 @@ function StatCard({
   )
 }
 
+function MacroBadge({ name, value }: { name: string; value: number }) {
+  const lower = name.toLowerCase()
+
+  let colorClass = 'text-neutral-50'
+  let ringClass = 'ring-[rgba(100,140,255,0.15)]'
+
+  if (lower.includes('fear') || lower.includes('greed') || lower.includes('fg')) {
+    if (value >= 75) { colorClass = 'text-emerald-400'; ringClass = 'ring-emerald-500/20' }
+    else if (value >= 50) { colorClass = 'text-emerald-300'; ringClass = 'ring-emerald-500/15' }
+    else if (value >= 25) { colorClass = 'text-amber-400'; ringClass = 'ring-amber-500/20' }
+    else { colorClass = 'text-rose-400'; ringClass = 'ring-rose-500/20' }
+  } else if (lower.includes('vix')) {
+    if (value >= 30) { colorClass = 'text-rose-400'; ringClass = 'ring-rose-500/20' }
+    else if (value >= 20) { colorClass = 'text-amber-400'; ringClass = 'ring-amber-500/20' }
+    else { colorClass = 'text-emerald-400'; ringClass = 'ring-emerald-500/20' }
+  } else if (lower.includes('dxy') || lower.includes('dollar')) {
+    if (value >= 105) { colorClass = 'text-rose-400'; ringClass = 'ring-rose-500/20' }
+    else if (value >= 100) { colorClass = 'text-amber-400'; ringClass = 'ring-amber-500/20' }
+    else { colorClass = 'text-emerald-400'; ringClass = 'ring-emerald-500/20' }
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ring-1 ${ringClass} bg-arena-surface text-sm`}
+    >
+      <span className="text-neutral-400">{name}</span>
+      <span className={`font-data tabular-nums font-semibold ${colorClass}`}>
+        {value % 1 === 0 ? value : value.toFixed(2)}
+      </span>
+    </span>
+  )
+}
+
+// ── Helpers ──
+
+const HISTORY_OPTIONS = [
+  { label: '7天', value: 7 },
+  { label: '30天', value: 30 },
+  { label: '90天', value: 90 },
+  { label: '1年', value: 365 },
+] as const
+
+const INDICATOR_DISPLAY_NAMES: Record<string, boolean> = {
+  'Fear & Greed': true,
+  'VIX': true,
+  'DXY': true,
+}
+
+// ── Main component ──
+
 export default function Dashboard() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null)
   const [exchangeRate, setExchangeRate] = useState<number>(7.2)
   const [currencyMode, setCurrencyMode] = useState<'USD' | 'CNY'>('USD')
-  const [historyData, setHistoryData] = useState<any[]>([])
+  const [historyData, setHistoryData] = useState<{ date: string; totalValueUsd: number; cryptoValueUsd: number; stockValueUsd: number; goldValueUsd: number }[]>([])
   const [historyDays, setHistoryDays] = useState(30)
+  const [platforms, setPlatforms] = useState<PlatformItem[]>([])
+  const [indicators, setIndicators] = useState<MacroIndicator[]>([])
 
   const { loading, error, execute } = useApi()
 
   const loadData = async () => {
     try {
-      const [summaryData, rateData, historyResult] = await Promise.all([
+      const [summaryData, rateData, historyResult, platformResult, indicatorResult] = await Promise.all([
         execute(() => portfolioApi.getSummary()),
         execute(() => exchangeRateApi.getCurrent()),
         execute(() => portfolioApi.getHistory(historyDays)),
+        execute(() => api.get('/portfolio/by-platform')),
+        execute(() => indicatorsApi.getLatest()),
       ])
-      if (summaryData) setSummary(summaryData)
-      if (rateData) setExchangeRate(rateData.rate)
-      if (historyResult) setHistoryData(historyResult.history || [])
-    } catch (err) {
-      console.error('加载数据失败:', err)
+      if (summaryData) setSummary(summaryData as PortfolioSummary)
+      if (rateData) setExchangeRate((rateData as { rate: number }).rate)
+      if (historyResult) setHistoryData((historyResult as { history: typeof historyData }).history || [])
+      if (platformResult) setPlatforms((platformResult as { data: PlatformItem[] }).data || platformResult as unknown as PlatformItem[])
+      if (indicatorResult) setIndicators(indicatorResult as MacroIndicator[])
+    } catch {
+      // errors are surfaced via the useApi error state
     }
   }
 
@@ -164,11 +247,18 @@ export default function Dashboard() {
     )
   }
 
+  // ── Derived data ──
   const totalValue = getDisplayValue(summary.totalValueUsd)
-  const totalCost = getDisplayValue(summary.totalCostUsd)
   const totalProfit = getDisplayValue(summary.totalProfitUsd)
 
-  const pieData = Object.entries(summary.categories)
+  const profitVariant =
+    summary.totalProfitUsd > 0
+      ? 'success'
+      : summary.totalProfitUsd < 0
+        ? 'danger'
+        : ('default' as const)
+
+  const categoryPieData = Object.entries(summary.categories)
     .map(([key, category]) => ({
       name: getCategoryName(key),
       value: category.percentage,
@@ -176,6 +266,13 @@ export default function Dashboard() {
       amount: getDisplayValue(category.valueUsd),
     }))
     .filter((item) => item.value > 0)
+
+  const platformPieData = platforms.map((p, i) => ({
+    name: p.displayName,
+    value: p.percentage,
+    color: PLATFORM_COLORS[i % PLATFORM_COLORS.length],
+    amount: getDisplayValue(p.valueUsd),
+  })).filter((item) => item.value > 0)
 
   const lineData = historyData.map((item) => ({
     date: item.date,
@@ -185,16 +282,19 @@ export default function Dashboard() {
     gold: getDisplayValue(item.goldValueUsd),
   }))
 
-  const profitVariant =
-    summary.totalProfitUsd > 0
-      ? 'success'
-      : summary.totalProfitUsd < 0
-        ? 'danger'
-        : ('default' as const)
+  const featuredIndicators = Array.isArray(indicators)
+    ? indicators.filter((ind) => {
+        const n = ind.indicator_name
+        return INDICATOR_DISPLAY_NAMES[n] ||
+          n.toLowerCase().includes('fear') ||
+          n.toLowerCase().includes('vix') ||
+          n.toLowerCase().includes('dxy')
+      })
+    : []
 
   return (
     <>
-      {/* ── Hero header ── */}
+      {/* ── 1. Hero Section ── */}
       <section className="relative pt-16">
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--arena-bg-void)] via-[#0d1117] to-[var(--arena-bg-base)] h-[320px]" />
         <div
@@ -207,9 +307,7 @@ export default function Dashboard() {
           }}
         />
         <div className="relative max-w-[1400px] mx-auto px-6 pt-12 pb-4">
-          <div
-            className="flex items-center gap-3 mb-2 animate-fade-in-up"
-          >
+          <div className="flex items-center gap-3 mb-2 animate-fade-in-up">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <BarChart3 className="w-5 h-5 text-white" strokeWidth={2} />
             </div>
@@ -249,7 +347,7 @@ export default function Dashboard() {
         <div className="h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
       </section>
 
-      {/* ── Stat cards ── */}
+      {/* ── 2. Stat Cards ── */}
       <section className="relative max-w-[1400px] mx-auto px-6 py-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
@@ -263,16 +361,6 @@ export default function Dashboard() {
             delay={0}
           />
           <StatCard
-            label="总成本"
-            value={
-              <span className="font-data tabular-nums">
-                {formatCurrency(totalCost, currencyMode)}
-              </span>
-            }
-            icon={Receipt}
-            delay={50}
-          />
-          <StatCard
             label="总盈亏"
             value={
               <span
@@ -284,7 +372,8 @@ export default function Dashboard() {
                       : ''
                 }`}
               >
-                {formatCurrency(totalProfit, currencyMode, true)}
+                {formatCurrency(totalProfit, currencyMode, true)}{' '}
+                <span className="text-base">({formatPercent(summary.totalProfitPercent)})</span>
               </span>
             }
             icon={
@@ -295,40 +384,37 @@ export default function Dashboard() {
                   : Minus
             }
             variant={profitVariant}
+            delay={50}
+          />
+          <StatCard
+            label="今日变动"
+            value={
+              <span className="font-data tabular-nums text-neutral-500">&mdash;</span>
+            }
+            icon={Activity}
             delay={100}
           />
           <StatCard
-            label="盈亏比例"
+            label="配置偏离"
             value={
-              <span
-                className={`font-data tabular-nums ${
-                  profitVariant === 'success'
-                    ? 'text-success'
-                    : profitVariant === 'danger'
-                      ? 'text-danger'
-                      : ''
-                }`}
-              >
-                {formatPercent(summary.totalProfitPercent)}
-              </span>
+              <span className="font-data tabular-nums text-neutral-500">&mdash;</span>
             }
-            icon={Percent}
-            variant={profitVariant}
+            icon={AlertTriangle}
             delay={150}
           />
         </div>
       </section>
 
-      {/* ── Charts ── */}
+      {/* ── 3. Dual Pie Charts ── */}
       <section className="relative max-w-[1400px] mx-auto px-6 pb-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Pie chart */}
+          {/* Category distribution */}
           <div className="glass scan-line rounded-lg p-5 border border-[rgba(100,140,255,0.1)]">
             <h3 className="text-base font-semibold text-neutral-50 mb-4">
-              资产配置
+              按类别分布
             </h3>
-            {pieData.length > 0 ? (
-              <PieChart data={pieData} />
+            {categoryPieData.length > 0 ? (
+              <PieChart data={categoryPieData} />
             ) : (
               <div className="h-64 flex items-center justify-center text-neutral-500">
                 暂无资产数据
@@ -336,103 +422,109 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Line chart */}
+          {/* Platform distribution */}
           <div className="glass scan-line rounded-lg p-5 border border-[rgba(100,140,255,0.1)]">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-neutral-50">
-                组合净值历史
-              </h3>
-              <select
-                value={historyDays}
-                onChange={(e) => setHistoryDays(Number(e.target.value))}
-                className="px-3 py-1.5 rounded-lg bg-arena-surface text-neutral-300 border border-[rgba(100,140,255,0.1)] text-sm font-medium focus:outline-none focus:border-primary/40"
-              >
-                <option value={7}>7天</option>
-                <option value={30}>30天</option>
-                <option value={90}>90天</option>
-                <option value={365}>1年</option>
-              </select>
-            </div>
-            {lineData.length > 0 ? (
-              <LineChart data={lineData} />
+            <h3 className="text-base font-semibold text-neutral-50 mb-4">
+              按平台分布
+            </h3>
+            {platformPieData.length > 0 ? (
+              <PieChart data={platformPieData} />
             ) : (
               <div className="h-64 flex items-center justify-center text-neutral-500">
-                暂无历史数据
+                暂无平台数据
               </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* ── Category details ── */}
+      {/* ── 4. Net Value Curve ── */}
       <section className="relative max-w-[1400px] mx-auto px-6 pb-6">
-        <div
-          className={`grid grid-cols-1 gap-4 ${
-            Object.keys(summary.categories).length <= 3
-              ? 'md:grid-cols-3'
-              : Object.keys(summary.categories).length <= 4
-                ? 'md:grid-cols-4'
-                : 'md:grid-cols-3 lg:grid-cols-4'
-          }`}
-        >
-          {Object.entries(summary.categories).map(([key, category]) => {
-            if (category.valueUsd === 0) return null
-            const value = getDisplayValue(category.valueUsd)
-            const profit = getDisplayValue(category.profitUsd)
-
-            return (
-              <div
-                key={key}
-                className="glass scan-line rounded-lg p-5 border border-[rgba(100,140,255,0.1)] hover:border-[rgba(100,140,255,0.25)] transition-all"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-base font-semibold text-neutral-50">
-                    {getCategoryName(key)}
-                  </h4>
-                  <div
-                    className="w-3 h-3 rounded-full ring-2 ring-white/10"
-                    style={{ backgroundColor: getCategoryColor(key) }}
-                  />
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-neutral-400">当前价值</span>
-                    <span className="text-sm font-medium text-neutral-100 font-data tabular-nums">
-                      {formatCurrency(value, currencyMode)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-neutral-400">占比</span>
-                    <span className="text-sm font-medium text-neutral-100 font-data">
-                      {category.percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-neutral-400">盈亏</span>
-                    <span
-                      className={`text-sm font-medium font-data tabular-nums ${getProfitColorClass(category.profitUsd)}`}
-                    >
-                      {formatCurrency(profit, currencyMode, true)} (
-                      {formatPercent(category.profitPercent)})
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-neutral-400">资产数量</span>
-                    <span className="text-sm font-medium text-neutral-100 font-data">
-                      {category.count} 个
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+        <div className="glass scan-line rounded-lg p-5 border border-[rgba(100,140,255,0.1)]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-neutral-50">
+              组合净值历史
+            </h3>
+            <div className="flex gap-1">
+              {HISTORY_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setHistoryDays(opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    historyDays === opt.value
+                      ? 'bg-primary/20 text-primary border border-primary/30'
+                      : 'text-neutral-400 hover:text-neutral-200 border border-transparent'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {lineData.length > 0 ? (
+            <LineChart data={lineData} />
+          ) : (
+            <div className="h-64 flex items-center justify-center text-neutral-500">
+              暂无历史数据
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ── Macro indicators ── */}
-      <section className="relative max-w-[1400px] mx-auto px-6 pb-16">
-        <MacroIndicators />
-      </section>
+      {/* ── 5. Macro Indicator Badges ── */}
+      {featuredIndicators.length > 0 && (
+        <section className="relative max-w-[1400px] mx-auto px-6 pb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-neutral-400 mr-1">宏观指标</span>
+            {featuredIndicators.map((ind) => (
+              <MacroBadge
+                key={ind.indicator_name}
+                name={ind.indicator_name}
+                value={ind.value}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── 6. Platform Overview Cards ── */}
+      {platforms.length > 0 && (
+        <section className="relative max-w-[1400px] mx-auto px-6 pb-16">
+          <h3 className="text-base font-semibold text-neutral-50 mb-4">平台概览</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {platforms.map((p) => (
+              <div
+                key={p.displayName}
+                className="glass scan-line rounded-lg p-4 border border-[rgba(100,140,255,0.1)] hover:border-[rgba(100,140,255,0.25)] transition-all"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  {p.icon ? (
+                    <span className="text-lg">{p.icon}</span>
+                  ) : (
+                    <div className="w-6 h-6 rounded bg-arena-surface flex items-center justify-center text-xs text-neutral-400">
+                      {p.displayName.charAt(0)}
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold text-neutral-50 truncate">
+                    {p.displayName}
+                  </span>
+                </div>
+                <div className="font-data tabular-nums text-lg font-bold text-neutral-50 mb-1">
+                  {formatCurrency(getDisplayValue(p.valueUsd), currencyMode)}
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className={`font-data tabular-nums ${getProfitColorClass(p.profitUsd)}`}>
+                    {formatPercent(p.profitPercent)}
+                  </span>
+                  <span className="text-neutral-500">
+                    {p.holdingsCount} 持仓
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   )
 }

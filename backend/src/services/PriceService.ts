@@ -157,31 +157,35 @@ export class PriceService {
    * 1盎司 = 31.1035克
    */
   async getGoldPrice(symbol?: string): Promise<PriceData | null> {
+    const exchangeRate = await this.getUSDCNYRate();
+
+    // 方案1: Yahoo Finance GC=F
     try {
-      // 使用黄金期货 GC=F
       const quote = await yahooFinance.quote('GC=F', {}, { suppressNotices: ['yahooSurvey'] });
-      
       if (quote && quote.regularMarketPrice) {
-        const usdPerOunce = quote.regularMarketPrice;
-        // 转换为人民币/克
-        const exchangeRate = await this.getUSDCNYRate();
-        const cnyPerGram = (usdPerOunce * exchangeRate) / 31.1035;
-        
-        return {
-          symbol: symbol || 'GC=F',
-          price: cnyPerGram,
-          currency: 'CNY',
-          source: 'yahoo-finance-gold',
-          timestamp: Date.now()
-        };
+        const cnyPerGram = (quote.regularMarketPrice * exchangeRate) / 31.1035;
+        return { symbol: symbol || 'GC=F', price: cnyPerGram, currency: 'CNY', source: 'yahoo-finance-gold', timestamp: Date.now() };
       }
-      
-      logger.warn('无法获取黄金价格');
-      return null;
-    } catch (error) {
-      logger.error('获取黄金价格失败:', error);
-      return null;
+    } catch {
+      logger.debug('Yahoo Finance GC=F 失败，尝试 Binance PAXG');
     }
+
+    // 方案2: Binance PAXG（1:1 锚定黄金，价格 ≈ 1盎司金价）
+    try {
+      const resp = await axios.get('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT', { timeout: 5000 });
+      if (resp.data?.price) {
+        const usdPerOunce = parseFloat(resp.data.price);
+        if (usdPerOunce > 0) {
+          const cnyPerGram = (usdPerOunce * exchangeRate) / 31.1035;
+          return { symbol: symbol || 'GC=F', price: cnyPerGram, currency: 'CNY', source: 'binance-paxg', timestamp: Date.now() };
+        }
+      }
+    } catch {
+      logger.debug('Binance PAXG 也失败');
+    }
+
+    logger.warn('无法获取黄金价格');
+    return null;
   }
 
   /**
@@ -271,7 +275,7 @@ export class PriceService {
       switch (category) {
         case 'crypto':
           // 稳定币直接返回1
-          if (['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD'].includes(symbol.replace('USDT', '').toUpperCase()) || symbol === 'USDT') {
+          if (['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD'].includes(symbol.toUpperCase()) || ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD'].includes(symbol.replace('USDT', '').toUpperCase())) {
             return { symbol, price: 1, currency: 'USD', source: 'static', timestamp: Date.now() };
           }
           // 确保crypto类型只用Binance API

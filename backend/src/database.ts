@@ -310,6 +310,102 @@ export function initDatabase() {
     )
   `);
 
+  // === 账户体系 v2 ===
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS platforms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      display_name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('exchange', 'manual')),
+      icon TEXT,
+      api_key_encrypted TEXT,
+      api_secret_encrypted TEXT,
+      api_passphrase_encrypted TEXT,
+      sync_enabled INTEGER DEFAULT 0,
+      last_sync_at INTEGER,
+      last_sync_status TEXT,
+      last_sync_error TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sub_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      account_type TEXT NOT NULL CHECK(account_type IN ('spot', 'earn', 'futures', 'margin', 'funding', 'unified', 'fund', 'gold', 'other')),
+      sync_enabled INTEGER DEFAULT 1,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      FOREIGN KEY (platform_id) REFERENCES platforms(id) ON DELETE CASCADE,
+      UNIQUE(platform_id, name)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS holdings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sub_account_id INTEGER NOT NULL,
+      category TEXT NOT NULL CHECK(category IN ('crypto', 'stock', 'gold', 'bond', 'commodity', 'reit', 'cash')),
+      symbol TEXT NOT NULL,
+      name TEXT NOT NULL,
+      quantity REAL NOT NULL DEFAULT 0,
+      cost_price REAL NOT NULL DEFAULT 0,
+      cost_currency TEXT DEFAULT 'USD',
+      source TEXT DEFAULT 'manual' CHECK(source IN ('api_sync', 'manual')),
+      notes TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      FOREIGN KEY (sub_account_id) REFERENCES sub_accounts(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS transfers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_sub_account_id INTEGER NOT NULL,
+      to_sub_account_id INTEGER NOT NULL,
+      symbol TEXT NOT NULL,
+      quantity REAL NOT NULL,
+      fee REAL DEFAULT 0,
+      fee_symbol TEXT,
+      notes TEXT,
+      executed_at INTEGER NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      FOREIGN KEY (from_sub_account_id) REFERENCES sub_accounts(id),
+      FOREIGN KEY (to_sub_account_id) REFERENCES sub_accounts(id)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sync_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id INTEGER NOT NULL,
+      sub_account_id INTEGER,
+      status TEXT NOT NULL CHECK(status IN ('started', 'success', 'failed')),
+      holdings_count INTEGER,
+      error_message TEXT,
+      duration_ms INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      FOREIGN KEY (platform_id) REFERENCES platforms(id)
+    )
+  `);
+
+  // 索引
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_holdings_sub_account ON holdings(sub_account_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_holdings_symbol ON holdings(symbol)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_holdings_category ON holdings(category)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_transfers_time ON transfers(executed_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sync_logs_platform ON sync_logs(platform_id, created_at)`);
+
+  // 插入默认平台和子账户
+  seedDefaultPlatforms();
+
+  // 清空旧 assets 数据（数据迁移到 holdings）
+  db.exec('DELETE FROM assets');
+
   // 迁移 assets 表 CHECK 约束（如果旧表存在且不含新分类）
   runAssetsMigration();
 
@@ -331,6 +427,47 @@ export function initDatabase() {
   }
 
   logger.info('数据库初始化完成');
+}
+
+/**
+ * 插入默认平台和子账户（幂等）
+ */
+function seedDefaultPlatforms() {
+  const platformCount = (db.prepare('SELECT COUNT(*) as count FROM platforms').get() as any).count;
+  if (platformCount > 0) return;
+
+  logger.info('插入默认平台和子账户...');
+
+  const insertPlatform = db.prepare(
+    'INSERT INTO platforms (name, display_name, type, icon) VALUES (?, ?, ?, ?)'
+  );
+  const insertSubAccount = db.prepare(
+    'INSERT INTO sub_accounts (platform_id, name, display_name, account_type) VALUES (?, ?, ?, ?)'
+  );
+
+  db.transaction(() => {
+    // Binance
+    const binance = insertPlatform.run('binance', '币安', 'exchange', '🟡');
+    const binanceId = binance.lastInsertRowid as number;
+    insertSubAccount.run(binanceId, 'spot', '现货账户', 'spot');
+    insertSubAccount.run(binanceId, 'earn', '理财账户', 'earn');
+    insertSubAccount.run(binanceId, 'futures', '合约账户', 'futures');
+
+    // Bybit
+    const bybit = insertPlatform.run('bybit', 'Bybit', 'exchange', '🔶');
+    const bybitId = bybit.lastInsertRowid as number;
+    insertSubAccount.run(bybitId, 'unified', '统一账户', 'unified');
+    insertSubAccount.run(bybitId, 'funding', '资金账户', 'funding');
+    insertSubAccount.run(bybitId, 'earn', '理财账户', 'earn');
+
+    // 支付宝
+    const alipay = insertPlatform.run('alipay', '支付宝', 'manual', '🔵');
+    const alipayId = alipay.lastInsertRowid as number;
+    insertSubAccount.run(alipayId, 'fund', '基金', 'fund');
+    insertSubAccount.run(alipayId, 'gold', '黄金', 'gold');
+  })();
+
+  logger.info('默认平台和子账户创建完成');
 }
 
 /**

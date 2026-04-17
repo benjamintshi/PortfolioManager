@@ -1,22 +1,20 @@
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard,
-  Coins,
+  BarChart3,
+  Landmark,
+  Package,
   Scale,
-  LineChart,
-  Map,
-  ClipboardList,
-  CalendarDays,
+  TrendingUp,
+  Globe,
 } from 'lucide-react'
 
 const navigation = [
-  { name: '总览', href: '/', icon: LayoutDashboard },
-  { name: '资产管理', href: '/assets', icon: Coins },
-  { name: '再平衡', href: '/rebalance', icon: Scale },
-  { name: '分析报告', href: '/analysis', icon: LineChart },
-  { name: '路线图', href: '/roadmap', icon: Map },
-  { name: '投资计划', href: '/plans', icon: ClipboardList },
-  { name: '宏观事件', href: '/events', icon: CalendarDays },
+  { name: '总览', href: '/', icon: BarChart3 },
+  { name: '账户', href: '/accounts', icon: Landmark },
+  { name: '持仓', href: '/holdings', icon: Package },
+  { name: '配置', href: '/allocation', icon: Scale },
+  { name: '分析', href: '/analytics', icon: TrendingUp },
+  { name: '市场', href: '/market', icon: Globe },
 ]
 
 export default function Header() {
@@ -65,7 +63,7 @@ export default function Header() {
           })}
         </nav>
 
-        {/* Right slot (reserved) */}
+        {/* Right slot */}
         <div className="flex items-center gap-3" />
       </div>
     </header>

@@ -11,6 +11,7 @@ import { RebalanceService } from './services/RebalanceService';
 import { NotificationService } from './services/NotificationService';
 import { binanceWs } from './services/BinanceWebSocket';
 import { MacroIndicatorService } from './services/MacroIndicatorService';
+import { ExchangeSyncService } from './services/ExchangeSyncService';
 
 const app = express();
 const port = process.env.PORT || 6002;
@@ -74,6 +75,7 @@ let portfolioService: PortfolioService;
 let rebalanceService: RebalanceService;
 let notificationService: NotificationService;
 let macroIndicatorService: MacroIndicatorService;
+let exchangeSyncService: ExchangeSyncService;
 
 // 初始化服务
 function initServices() {
@@ -82,6 +84,7 @@ function initServices() {
   rebalanceService = new RebalanceService();
   notificationService = new NotificationService();
   macroIndicatorService = new MacroIndicatorService();
+  exchangeSyncService = new ExchangeSyncService();
 
   logger.info('服务初始化完成');
 }
@@ -119,6 +122,17 @@ function setupCronJobs() {
       // 汇率会在需要时自动更新，这里只是触发一次
     } catch (error) {
       logger.error('定时更新汇率失败:', error);
+    }
+  }, {
+    timezone: 'Asia/Shanghai'
+  });
+
+  // 每小时同步交易所持仓
+  cron.schedule('0 * * * *', async () => {
+    try {
+      await exchangeSyncService.syncAllEnabled();
+    } catch (error) {
+      logger.error('定时同步交易所失败:', error);
     }
   }, {
     timezone: 'Asia/Shanghai'

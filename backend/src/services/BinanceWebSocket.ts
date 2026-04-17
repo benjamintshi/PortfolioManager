@@ -87,9 +87,15 @@ export class BinanceWebSocket {
 
   private loadCryptoSymbols(): string[] {
     const stablecoins = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD']);
-    const rows = db
-      .prepare("SELECT DISTINCT symbol FROM assets WHERE category = 'crypto'")
+    // 优先读 holdings 表，fallback 到 assets 表
+    let rows = db
+      .prepare("SELECT DISTINCT symbol FROM holdings WHERE category = 'crypto'")
       .all() as Array<{ symbol: string }>;
+    if (rows.length === 0) {
+      rows = db
+        .prepare("SELECT DISTINCT symbol FROM assets WHERE category = 'crypto'")
+        .all() as Array<{ symbol: string }>;
+    }
 
     return rows
       .map(r => r.symbol.replace(/USDT$/, '').toUpperCase())

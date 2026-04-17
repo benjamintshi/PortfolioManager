@@ -84,22 +84,69 @@ export class PortfolioService {
   }
 
   /**
-   * 获取所有资产
+   * 获取所有资产（从 holdings 表读取，含平台信息）
    */
   getAllAssets(): Asset[] {
     try {
       const stmt = db.prepare(`
-        SELECT 
-          id, category, symbol, name, quantity, 
-          cost_price as costPrice, cost_currency as costCurrency,
-          notes, created_at as createdAt, updated_at as updatedAt
-        FROM assets 
-        ORDER BY category, symbol
+        SELECT
+          h.id, h.category, h.symbol, h.name, h.quantity,
+          h.cost_price as costPrice, h.cost_currency as costCurrency,
+          h.notes, h.created_at as createdAt, h.updated_at as updatedAt,
+          sa.platform_id as platformId,
+          p.display_name as platformName,
+          sa.display_name as subAccountName
+        FROM holdings h
+        JOIN sub_accounts sa ON h.sub_account_id = sa.id
+        JOIN platforms p ON sa.platform_id = p.id
+        ORDER BY h.category, h.symbol
       `);
-      
+
       return stmt.all() as Asset[];
     } catch (error) {
       logger.error('获取资产列表失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 按平台汇总资产
+   */
+  async getByPlatform(): Promise<any[]> {
+    try {
+      const summary = await this.getPortfolioSummary();
+      const usdCnyRate = await this.exchangeRateService.getUSDCNYRate();
+
+      const platforms = db.prepare(`
+        SELECT p.id, p.name, p.display_name, p.icon, p.type,
+               p.last_sync_at, p.last_sync_status
+        FROM platforms p ORDER BY p.id
+      `).all() as any[];
+
+      return platforms.map(p => {
+        const platformAssets = summary.assets.filter((a: any) => a.platformId === p.id);
+        const valueUsd = platformAssets.reduce((s: number, a: any) => s + a.currentValue, 0);
+        const costUsd = platformAssets.reduce((s: number, a: any) => s + a.costValue, 0);
+        const profitUsd = valueUsd - costUsd;
+        return {
+          id: p.id,
+          name: p.name,
+          displayName: p.display_name,
+          icon: p.icon,
+          type: p.type,
+          valueUsd,
+          valueCny: valueUsd * usdCnyRate,
+          costUsd,
+          profitUsd,
+          profitPercent: costUsd > 0 ? (profitUsd / costUsd) * 100 : 0,
+          percentage: summary.totalValueUsd > 0 ? (valueUsd / summary.totalValueUsd) * 100 : 0,
+          holdingsCount: platformAssets.length,
+          lastSyncAt: p.last_sync_at,
+          lastSyncStatus: p.last_sync_status,
+        };
+      }).filter(p => p.holdingsCount > 0 || p.type === 'exchange');
+    } catch (error) {
+      logger.error('按平台汇总失败:', error);
       return [];
     }
   }

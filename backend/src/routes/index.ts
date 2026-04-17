@@ -7,6 +7,9 @@ import roadmapRouter from './roadmap';
 import indicatorsRouter from './indicators';
 import plansRouter from './plans';
 import eventsRouter from './events';
+import platformsRouter from './platforms';
+import holdingsRouter from './holdings';
+import transfersRouter from './transfers';
 
 const router = express.Router();
 
@@ -27,6 +30,9 @@ router.use('/rebalance', rebalanceRouter);
 router.use('/indicators', indicatorsRouter);
 router.use('/plans', plansRouter);
 router.use('/events', eventsRouter);
+router.use('/platforms', platformsRouter);
+router.use('/holdings', holdingsRouter);
+router.use('/transfers', transfersRouter);
 router.use('/', roadmapRouter);
 
 // 测试 Telegram 消息发送
