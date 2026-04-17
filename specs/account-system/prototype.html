@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>账户管理 — Arena Prototype</title>
+<style>
+  /* Arena Design System tokens */
+  :root {
+    --bg-void: #04060e; --bg-base: #080c1a; --bg-surface: #161d3e;
+    --bg-elevated: #0d1225; --bg-panel: #111832; --bg-hover: #1c2550;
+    --primary: #3b82f6; --primary-soft: #3b82f61f; --primary-dim: #1d4ed8;
+    --accent: #8b5cf6; --accent-soft: #8b5cf61f;
+    --success: #10b981; --success-soft: #10b9811f;
+    --danger: #ef4444; --danger-soft: #ef44441f;
+    --neutral-50: #f8fafc; --neutral-100: #e2e8f0; --neutral-200: #cbd5e1;
+    --neutral-300: #94a3b8; --neutral-400: #64748b; --neutral-500: #475569;
+    --glass-bg: #101630b8; --glass-border: #648cff1f;
+    --gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg-base); color: var(--neutral-200);
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Ambient */
+  .ambient { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+  .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.3; animation: drift 20s ease-in-out infinite; }
+  .orb-1 { background: radial-gradient(circle, #3b82f626, transparent 70%); width: 500px; height: 500px; top: -10%; left: -5%; }
+  .orb-2 { background: radial-gradient(circle, #8b5cf61f, transparent 70%); width: 400px; height: 400px; top: 40%; right: -8%; animation-delay: -7s; }
+  @keyframes drift { 0%,100%{transform:translate(0)scale(1)} 50%{transform:translate(-20px,15px)scale(.95)} }
+
+  /* Grid */
+  .grid-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: linear-gradient(#3b82f608 1px, transparent 1px), linear-gradient(90deg, #3b82f608 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(at 50% 30%, #000 20%, transparent 70%);
+  }
+
+  .content { position: relative; z-index: 1; }
+
+  /* Header */
+  .header { position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: 64px;
+    backdrop-filter: blur(30px) saturate(1.2); background: #101630e0; border-bottom: 1px solid #648cff26; }
+  .header-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; height: 100%; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .logo-text { font-size: 18px; font-weight: 700; letter-spacing: 0.05em;
+    background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; text-decoration: none;
+    color: var(--neutral-400); transition: color 0.2s; }
+  .nav a:hover { color: var(--neutral-200); }
+  .nav a.active { color: var(--neutral-50); position: relative; }
+  .nav a.active::before { content: ''; position: absolute; inset: 0; border-radius: 8px; background: var(--primary-soft); z-index: -1; }
+
+  /* Hero */
+  .hero { padding-top: 112px; padding-bottom: 16px; position: relative; }
+  .hero-bg { position: absolute; top: 0; left: 0; right: 0; height: 320px;
+    background: linear-gradient(to bottom, var(--bg-void), #0d1117, var(--bg-base)); }
+  .hero-inner { position: relative; max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+  .hero-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; animation: fadeUp 0.4s cubic-bezier(.16,1,.3,1) forwards; }
+  .hero-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #3b82f6, #7c3aed); box-shadow: 0 8px 24px rgba(59,130,246,0.2); font-size: 20px; }
+  .hero-title { font-size: 30px; font-weight: 800; letter-spacing: -0.02em;
+    background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-desc { font-size: 14px; color: var(--neutral-400); }
+  .hero-actions { margin-left: auto; display: flex; gap: 8px; }
+  .divider { height: 1px; background: linear-gradient(to right, transparent, rgba(59,130,246,0.2), transparent); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Section */
+  .section { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* Glass card */
+  .glass { background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 16px; }
+  .glass:hover { border-color: rgba(100,140,255,0.25); }
+
+  /* Stat card */
+  .stat-card { padding: 20px; position: relative; overflow: hidden; }
+  .stat-card::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, #3b82f60f, transparent); animation: scan 4s ease-in-out infinite; }
+  @keyframes scan { 0%{left:-100%} 50%{left:100%} 100%{left:100%} }
+
+  /* Button */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 12px;
+    font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
+  .btn-surface { background: var(--bg-surface); color: var(--neutral-300); border: 1px solid rgba(100,140,255,0.1); }
+  .btn-surface:hover { border-color: rgba(59,130,246,0.4); color: var(--primary); }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dim); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 8px; }
+
+  /* Badge */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; }
+  .badge-success { background: var(--success-soft); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+  .badge-danger { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+  .badge-primary { background: var(--primary-soft); color: var(--primary); border: 1px solid rgba(59,130,246,0.2); }
+  .badge-muted { background: rgba(100,116,139,0.1); color: var(--neutral-400); border: 1px solid rgba(100,116,139,0.2); }
+
+  /* Platform card */
+  .platform-card { margin-bottom: 16px; }
+  .platform-header { display: flex; align-items: center; padding: 20px; cursor: pointer; }
+  .platform-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-right: 16px; }
+  .platform-info { flex: 1; }
+  .platform-name { font-size: 18px; font-weight: 700; color: var(--neutral-50); }
+  .platform-meta { font-size: 13px; color: var(--neutral-400); margin-top: 2px; }
+  .platform-stats { text-align: right; margin-right: 16px; }
+  .platform-value { font-size: 20px; font-weight: 700; color: var(--neutral-50); font-family: monospace; letter-spacing: -0.02em; }
+  .platform-sub { font-size: 12px; color: var(--neutral-400); }
+
+  /* Sub-account */
+  .sub-accounts { border-top: 1px solid rgba(100,140,255,0.08); }
+  .sub-account { padding: 16px 20px; border-bottom: 1px solid rgba(100,140,255,0.05); }
+  .sub-account:last-child { border-bottom: none; }
+  .sub-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .sub-name { font-size: 14px; font-weight: 600; color: var(--neutral-200); display: flex; align-items: center; gap: 8px; }
+
+  /* Holdings table */
+  .holdings-table { width: 100%; border-collapse: collapse; }
+  .holdings-table th { padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--neutral-400);
+    text-transform: uppercase; letter-spacing: 0.05em; text-align: left; border-bottom: 1px solid rgba(100,140,255,0.08); }
+  .holdings-table td { padding: 10px 12px; font-size: 14px; color: var(--neutral-200); }
+  .holdings-table tr:hover td { background: rgba(100,140,255,0.03); }
+  .mono { font-family: monospace; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+  .modal { background: #101630e0; border: 1px solid rgba(100,140,255,0.15); border-radius: 16px; padding: 24px;
+    width: 480px; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 30px rgba(59,130,246,0.2); }
+  .modal h3 { font-size: 18px; font-weight: 700; color: var(--neutral-50); margin-bottom: 16px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--neutral-400); margin-bottom: 6px; }
+  .form-input { width: 100%; padding: 10px 14px; border-radius: 12px; font-size: 14px;
+    background: var(--bg-surface); color: var(--neutral-200); border: 1px solid rgba(100,140,255,0.1);
+    outline: none; transition: border-color 0.2s; }
+  .form-input:focus { border-color: rgba(59,130,246,0.4); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+
+  /* Transfer card */
+  .transfer-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(100,140,255,0.05); }
+  .transfer-arrow { color: var(--primary); font-weight: 700; }
+
+  /* Tabs */
+  .tabs { display: inline-flex; background: var(--bg-surface); border-radius: 12px; padding: 4px; border: 1px solid rgba(100,140,255,0.08); }
+  .tab { padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    color: var(--neutral-400); transition: all 0.2s; border: none; background: none; }
+  .tab.active { background: var(--primary-soft); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+  /* Sync status */
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .sync-dot.online { background: var(--success); box-shadow: 0 0 8px rgba(16,185,129,0.5); animation: pulse-dot 2s ease-out infinite; }
+  .sync-dot.offline { background: var(--neutral-500); }
+  .sync-dot.error { background: var(--danger); }
+  @keyframes pulse-dot { 0%{box-shadow:0 0 0 0 rgba(16,185,129,0.5)} 70%{box-shadow:0 0 0 8px transparent} }
+
+  /* Profit colors */
+  .text-profit { color: var(--success); }
+  .text-loss { color: var(--danger); }
+
+  .flex-1 { flex: 1; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!-- Ambient -->
+<div class="ambient"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+<div class="grid-bg"></div>
+
+<div class="content">
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <a class="logo" href="#"><span style="font-size:20px">💼</span><span class="logo-text">PORTFOLIO</span></a>
+    <nav class="nav">
+      <a href="#" onclick="showPage('dashboard')">📊 总览</a>
+      <a href="#" class="active" onclick="showPage('accounts')">🏦 账户</a>
+      <a href="#" onclick="showPage('holdings')">📦 持仓</a>
+      <a href="#" onclick="showPage('allocation')">⚖️ 配置</a>
+      <a href="#" onclick="showPage('analytics')">📈 分析</a>
+      <a href="#" onclick="showPage('market')">🗓️ 市场</a>
+    </nav>
+    <div></div>
+  </div>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-inner">
+    <div class="hero-row">
+      <div class="hero-icon">🏦</div>
+      <div class="flex-1">
+        <div class="hero-title">账户管理</div>
+        <div class="hero-desc">多平台资产归属 · API 自动同步 · 转账追踪</div>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-surface" onclick="toggleModal('transfer-modal')">↔️ 记录转账</button>
+        <button class="btn btn-surface" onclick="toggleModal('add-platform-modal')">+ 添加平台</button>
+      </div>
+    </div>
+  </div>
+  <div class="divider"></div>
+</div>
+
+<!-- Stats overview -->
+<div class="section" style="padding-bottom:8px">
+  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+    <div class="glass stat-card">
+      <div style="font-size:13px; color:var(--neutral-400); margin-bottom:12px;">平台总数</div>
+      <div class="mono" style="font-size:28px; font-weight:700; color:var(--neutral-50);">3</div>
+    </div>
+    <div class="glass stat-card">
+      <div style="font-size:13px; color:var(--neutral-400); margin-bottom:12px;">总资产</div>
+      <div class="mono" style="font-size:28px; font-weight:700; color:var(--neutral-50);">$76,772</div>
+    </div>
+    <div class="glass stat-card">
+      <div style="font-size:13px; color:var(--neutral-400); margin-bottom:12px;">已同步</div>
+      <div class="mono" style="font-size:28px; font-weight:700; color:var(--success);">2/3</div>
+    </div>
+    <div class="glass stat-card">
+      <div style="font-size:13px; color:var(--neutral-400); margin-bottom:12px;">最后同步</div>
+      <div class="mono" style="font-size:28px; font-weight:700; color:var(--neutral-50);">3分钟前</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="section" style="padding-top:8px; padding-bottom:8px;">
+  <div class="tabs">
+    <button class="tab active">全部平台</button>
+    <button class="tab">转账记录</button>
+    <button class="tab">同步日志</button>
+  </div>
+</div>
+
+<!-- Platform cards -->
+<div class="section" style="padding-top:8px">
+
+  <!-- Binance -->
+  <div class="glass platform-card" id="binance-card">
+    <div class="platform-header" onclick="togglePlatform('binance')">
+      <div class="platform-icon" style="background:linear-gradient(135deg,#f0b90b22,#f0b90b11);">
+        <span>🟡</span>
+      </div>
+      <div class="platform-info">
+        <div class="platform-name">
+          币安 Binance
+          <span class="badge badge-success" style="margin-left:8px;"><span class="sync-dot online"></span> 已同步</span>
+        </div>
+        <div class="platform-meta">3 个子账户 · API 自动同步 · 最后同步 3分钟前</div>
+      </div>
+      <div class="platform-stats">
+        <div class="platform-value">$48,631</div>
+        <div class="platform-sub text-loss">-38.2% · -$30,021</div>
+      </div>
+      <div style="margin-left:12px;">
+        <button class="btn btn-sm btn-surface" onclick="event.stopPropagation()">🔄 同步</button>
+      </div>
+      <div style="margin-left:8px; color:var(--neutral-400); font-size:20px;">▾</div>
+    </div>
+
+    <div class="sub-accounts" id="binance-subs">
+      <!-- 现货 -->
+      <div class="sub-account">
+        <div class="sub-header">
+          <div class="sub-name">
+            <span style="color:var(--primary)">●</span> 现货账户
+            <span class="badge badge-primary">Spot</span>
+          </div>
+          <div class="mono" style="font-weight:600; color:var(--neutral-50);">$25,836</div>
+        </div>
+        <table class="holdings-table">
+          <thead><tr>
+            <th>资产</th><th>数量</th><th>均价</th><th>现价</th><th>市值</th><th>盈亏</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><span style="color:var(--primary)">●</span> BTC <span style="color:var(--neutral-400)">比特币</span></td>
+              <td class="mono">0.1191</td>
+              <td class="mono">$67,146</td>
+              <td class="mono">$84,502</td>
+              <td class="mono" style="font-weight:600">$10,064</td>
+              <td class="mono text-profit">+$2,066 (+25.8%)</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--primary)">●</span> ETH <span style="color:var(--neutral-400)">以太坊</span></td>
+              <td class="mono">5.3642</td>
+              <td class="mono">$2,200</td>
+              <td class="mono">$1,580</td>
+              <td class="mono" style="font-weight:600">$8,475</td>
+              <td class="mono text-loss">-$3,326 (-28.2%)</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--primary)">●</span> SOL <span style="color:var(--neutral-400)">Solana</span></td>
+              <td class="mono">74.533</td>
+              <td class="mono">$93.80</td>
+              <td class="mono">$132.50</td>
+              <td class="mono" style="font-weight:600">$9,875</td>
+              <td class="mono text-profit">+$2,882 (+41.2%)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 理财 -->
+      <div class="sub-account">
+        <div class="sub-header">
+          <div class="sub-name">
+            <span style="color:#f59e0b">●</span> 理财账户
+            <span class="badge badge-muted">Earn</span>
+          </div>
+          <div class="mono" style="font-weight:600; color:var(--neutral-50);">$20,895</div>
+        </div>
+        <table class="holdings-table">
+          <thead><tr><th>资产</th><th>数量</th><th>年化</th><th>市值</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span style="color:#22c55e">●</span> USDT <span style="color:var(--neutral-400)">泰达币</span></td>
+              <td class="mono">20,895.00</td>
+              <td class="mono" style="color:var(--success)">2.8%</td>
+              <td class="mono" style="font-weight:600">$20,895</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 合约 -->
+      <div class="sub-account">
+        <div class="sub-header">
+          <div class="sub-name">
+            <span style="color:var(--danger)">●</span> 合约账户
+            <span class="badge badge-muted">Futures</span>
+          </div>
+          <div class="mono" style="font-weight:600; color:var(--neutral-50);">$1,900</div>
+        </div>
+        <table class="holdings-table">
+          <thead><tr><th>资产</th><th>仓位</th><th>未实现盈亏</th><th>净值</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span style="color:var(--primary)">●</span> BTCUSDT <span style="color:var(--neutral-400)">永续多</span></td>
+              <td class="mono">0.01 BTC (2x)</td>
+              <td class="mono text-profit">+$42</td>
+              <td class="mono" style="font-weight:600">$1,900</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bybit -->
+  <div class="glass platform-card" id="bybit-card">
+    <div class="platform-header" onclick="togglePlatform('bybit')">
+      <div class="platform-icon" style="background:linear-gradient(135deg,#f7a60022,#f7a60011);">
+        <span>🔶</span>
+      </div>
+      <div class="platform-info">
+        <div class="platform-name">
+          Bybit
+          <span class="badge badge-success" style="margin-left:8px;"><span class="sync-dot online"></span> 已同步</span>
+        </div>
+        <div class="platform-meta">1 个子账户 · API 自动同步 · 最后同步 3分钟前</div>
+      </div>
+      <div class="platform-stats">
+        <div class="platform-value">$2,801</div>
+        <div class="platform-sub" style="color:var(--neutral-400)">0.0%</div>
+      </div>
+      <div style="margin-left:12px;">
+        <button class="btn btn-sm btn-surface" onclick="event.stopPropagation()">🔄 同步</button>
+      </div>
+      <div style="margin-left:8px; color:var(--neutral-400); font-size:20px;">▸</div>
+    </div>
+    <div class="sub-accounts hidden" id="bybit-subs">
+      <div class="sub-account">
+        <div class="sub-header">
+          <div class="sub-name"><span style="color:#f7a600">●</span> 统一账户 <span class="badge badge-muted">Unified</span></div>
+          <div class="mono" style="font-weight:600; color:var(--neutral-50);">$2,801</div>
+        </div>
+        <table class="holdings-table">
+          <thead><tr><th>资产</th><th>数量</th><th>市值</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span style="color:#22c55e">●</span> USDT</td>
+              <td class="mono">2,801.00</td>
+              <td class="mono" style="font-weight:600">$2,801</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 支付宝 -->
+  <div class="glass platform-card" id="alipay-card">
+    <div class="platform-header" onclick="togglePlatform('alipay')">
+      <div class="platform-icon" style="background:linear-gradient(135deg,#1677ff22,#1677ff11);">
+        <span>🔵</span>
+      </div>
+      <div class="platform-info">
+        <div class="platform-name">
+          支付宝
+          <span class="badge badge-muted" style="margin-left:8px;">手动录入</span>
+        </div>
+        <div class="platform-meta">2 个子账户 · 手动管理 · 最后更新 2天前</div>
+      </div>
+      <div class="platform-stats">
+        <div class="platform-value">¥7,680</div>
+        <div class="platform-sub text-loss">-12.3% · -¥1,078</div>
+      </div>
+      <div style="margin-left:12px;">
+        <button class="btn btn-sm btn-surface" onclick="event.stopPropagation()">✏️ 编辑</button>
+      </div>
+      <div style="margin-left:8px; color:var(--neutral-400); font-size:20px;">▸</div>
+    </div>
+    <div class="sub-accounts hidden" id="alipay-subs">
+      <div class="sub-account">
+        <div class="sub-header">
+          <div class="sub-name"><span style="color:#facc15">●</span> 黄金 <span class="badge badge-muted">Gold</span></div>
+          <div class="mono" style="font-weight:600; color:var(--neutral-50);">¥3,542</div>
+        </div>
+        <table class="holdings-table">
+          <thead><tr><th>资产</th><th>数量(克)</th><th>均价</th><th>市值</th><th>盈亏</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td>🥇 黄金</td>
+              <td class="mono">4.4014</td>
+              <td class="mono">¥1,136/克</td>
+              <td class="mono" style="font-weight:600">¥3,542</td>
+              <td class="mono text-loss">-¥458 (-8.2%)</td>
+              <td><button class="btn btn-sm btn-surface">编辑</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="padding:8px 12px;"><button class="btn btn-sm btn-surface">+ 添加持仓</button></div>
+      </div>
+      <div class="sub-account">
+        <div class="sub-header">
+          <div class="sub-name"><span style="color:var(--primary)">●</span> 基金 <span class="badge badge-muted">Fund</span></div>
+          <div class="mono" style="font-weight:600; color:var(--neutral-50);">¥4,138</div>
+        </div>
+        <table class="holdings-table">
+          <thead><tr><th>基金</th><th>份额</th><th>净值</th><th>市值</th><th>盈亏</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td>📊 华宝纳斯达克精选 <span style="color:var(--neutral-500);font-size:12px">017436</span></td>
+              <td class="mono">3,867.74</td>
+              <td class="mono">¥1.07</td>
+              <td class="mono" style="font-weight:600">¥4,138</td>
+              <td class="mono text-loss">-¥620 (-13.0%)</td>
+              <td><button class="btn btn-sm btn-surface">编辑</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="padding:8px 12px;"><button class="btn btn-sm btn-surface">+ 添加持仓</button></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- API Key Modal (示例) -->
+<div class="modal-overlay hidden" id="apikey-modal">
+  <div class="modal">
+    <h3>🔑 配置 API Key — 币安</h3>
+    <div class="form-group">
+      <label class="form-label">API Key</label>
+      <input class="form-input" type="password" placeholder="粘贴 API Key..." value="vmTk...8x2Q">
+    </div>
+    <div class="form-group">
+      <label class="form-label">API Secret</label>
+      <input class="form-input" type="password" placeholder="粘贴 API Secret...">
+    </div>
+    <div style="padding:12px 16px; background:rgba(59,130,246,0.05); border:1px solid rgba(59,130,246,0.1); border-radius:12px; margin-bottom:16px;">
+      <div style="font-size:13px; color:var(--neutral-300);">
+        ⚠️ 安全提示：只需开启<strong>只读权限</strong>（Read Only），无需提现/交易权限。
+        API Key 将使用 AES-256 加密存储。
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-surface" onclick="toggleModal('apikey-modal')">取消</button>
+      <button class="btn btn-primary">保存并同步</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer Modal -->
+<div class="modal-overlay hidden" id="transfer-modal">
+  <div class="modal">
+    <h3>↔️ 记录跨平台转账</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">从</label>
+        <select class="form-input">
+          <option>币安 · 现货</option>
+          <option>币安 · 理财</option>
+          <option>Bybit · 统一账户</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">到</label>
+        <select class="form-input">
+          <option>Bybit · 统一账户</option>
+          <option>币安 · 现货</option>
+          <option>币安 · 理财</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">资产</label>
+        <select class="form-input">
+          <option>BTC</option>
+          <option>ETH</option>
+          <option>USDT</option>
+          <option>SOL</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">数量</label>
+        <input class="form-input" type="number" placeholder="0.00" value="0.5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">手续费</label>
+        <input class="form-input" type="number" placeholder="0" value="0.0001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">时间</label>
+        <input class="form-input" type="datetime-local" value="2026-04-15T10:30">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">备注</label>
+      <input class="form-input" type="text" placeholder="如：套利转账">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-surface" onclick="toggleModal('transfer-modal')">取消</button>
+      <button class="btn btn-primary">确认转账</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Platform Modal -->
+<div class="modal-overlay hidden" id="add-platform-modal">
+  <div class="modal">
+    <h3>+ 添加平台</h3>
+    <div class="form-group">
+      <label class="form-label">平台名称</label>
+      <input class="form-input" type="text" placeholder="如：OKX、Gate.io">
+    </div>
+    <div class="form-group">
+      <label class="form-label">类型</label>
+      <div style="display:flex; gap:12px;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--neutral-300); font-size:14px;">
+          <input type="radio" name="ptype" checked> 交易所（API 同步）
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--neutral-300); font-size:14px;">
+          <input type="radio" name="ptype"> 手动录入
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">子账户</label>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="badge badge-primary">现货 Spot</span>
+        <span class="badge badge-primary">理财 Earn</span>
+        <button class="btn btn-sm btn-surface">+ 添加</button>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-surface" onclick="toggleModal('add-platform-modal')">取消</button>
+      <button class="btn btn-primary">创建</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function togglePlatform(id) {
+  const subs = document.getElementById(id + '-subs');
+  subs.classList.toggle('hidden');
+  const card = document.getElementById(id + '-card');
+  const arrow = card.querySelector('.platform-header > div:last-child');
+  arrow.textContent = subs.classList.contains('hidden') ? '▸' : '▾';
+}
+
+function toggleModal(id) {
+  document.getElementById(id).classList.toggle('hidden');
+}
+</script>
+</body>
+</html>
