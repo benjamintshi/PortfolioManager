@@ -4,7 +4,6 @@ import {
   Landmark,
   Package,
   Scale,
-  Globe,
 } from 'lucide-react'
 
 const navigation = [
@@ -12,7 +11,6 @@ const navigation = [
   { name: '账户', href: '/accounts', icon: Landmark },
   { name: '持仓', href: '/holdings', icon: Package },
   { name: '配置', href: '/allocation', icon: Scale },
-  { name: '市场', href: '/market', icon: Globe },
 ]
 
 export default function Header() {

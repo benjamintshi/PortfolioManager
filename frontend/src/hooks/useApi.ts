@@ -312,26 +312,6 @@ export const plansApi = {
 };
 
 /**
- * 宏观事件API
- */
-export const eventsApi = {
-  getAll: () => api.get<ApiResponse>('/events'),
-  getUpcoming: () => api.get<ApiResponse>('/events', { params: { upcoming: 'true' } }),
-  create: (event: {
-    event_name: string;
-    event_date: string;
-    event_type?: string;
-    importance?: string;
-    affected_assets?: string;
-    expected_impact?: string;
-    actual_result?: string;
-    notes?: string;
-  }) => api.post<ApiResponse>('/events', event),
-  update: (id: number, updates: any) => api.put<ApiResponse>(`/events/${id}`, updates),
-  delete: (id: number) => api.delete<ApiResponse>(`/events/${id}`),
-};
-
-/**
  * 平台API
  */
 export const platformsApi = {
