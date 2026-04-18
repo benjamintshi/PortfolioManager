@@ -255,13 +255,18 @@ export class PortfolioService {
     try {
       const assets = this.getAllAssets();
       const assetsWithPrice: AssetWithPrice[] = [];
-      
-      // 获取当前汇率
-      const usdCnyRate = await this.exchangeRateService.getUSDCNYRate();
-      
-      // 为每个资产获取当前价格并计算盈亏
+
+      // 并发：汇率 + 批量价格（N+1 → 1+1）
+      const [usdCnyRate, priceMap] = await Promise.all([
+        this.exchangeRateService.getUSDCNYRate(),
+        this.priceService.getPricesBatch(
+          assets.map((a) => ({ symbol: a.symbol, category: a.category })),
+        ),
+      ]);
+
+      // 为每个资产查价并计算盈亏
       for (const asset of assets) {
-        const priceData = await this.priceService.getPrice(asset.symbol, asset.category);
+        const priceData = priceMap.get(asset.symbol) ?? null;
         const currentPrice = priceData ? priceData.price : 0;
         const priceCurrency = priceData?.currency || 'USD';
         

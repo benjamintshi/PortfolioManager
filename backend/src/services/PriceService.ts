@@ -259,6 +259,113 @@ export class PriceService {
   }
 
   /**
+   * 批量获取价格（优化版本，避免 N+1）
+   *
+   * 流程：
+   * 1. 输入按 symbol 去重（多个持仓同 symbol 只查一次）
+   * 2. 一次 SQL 批量读 price_cache（WHERE symbol IN ...）
+   * 3. crypto 先查 WebSocket 内存缓存
+   * 4. 稳定币/cash 直接填 1
+   * 5. 未命中的按 category 分组并发 fetch
+   * 6. 并发结果批量写回 DB 缓存
+   */
+  async getPricesBatch(
+    items: Array<{ symbol: string; category: string }>,
+    maxCacheAgeMs: number = 5 * 60 * 1000,
+  ): Promise<Map<string, PriceData | null>> {
+    const result = new Map<string, PriceData | null>();
+    if (items.length === 0) return result;
+
+    // 去重：symbol → category（取第一个出现的）
+    const uniqueItems = new Map<string, string>();
+    for (const { symbol, category } of items) {
+      if (!uniqueItems.has(symbol)) {
+        uniqueItems.set(symbol, category);
+      }
+    }
+
+    const stablecoins = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD']);
+    const unresolvedSymbols: string[] = [];
+
+    // 第一轮：先处理 cash/稳定币（无需查询）
+    for (const [symbol, category] of uniqueItems) {
+      const symUpper = symbol.toUpperCase();
+      if (category === 'cash' || stablecoins.has(symUpper)) {
+        result.set(symbol, { symbol, price: 1, currency: 'USD', source: 'static', timestamp: Date.now() });
+        continue;
+      }
+      unresolvedSymbols.push(symbol);
+    }
+
+    if (unresolvedSymbols.length === 0) return result;
+
+    // 第二轮：批量查 price_cache（一次 SQL）
+    try {
+      const placeholders = unresolvedSymbols.map(() => '?').join(',');
+      const stmt = db.prepare(`
+        SELECT symbol, price, currency, source, timestamp, MAX(timestamp) as max_ts
+        FROM price_cache
+        WHERE symbol IN (${placeholders}) AND timestamp > ?
+        GROUP BY symbol
+      `);
+      const minTs = Date.now() - maxCacheAgeMs;
+      const rows = stmt.all(...unresolvedSymbols, minTs) as Array<{ symbol: string; price: number; currency: string; source: string; timestamp: number }>;
+
+      for (const row of rows) {
+        result.set(row.symbol, {
+          symbol: row.symbol,
+          price: row.price,
+          currency: row.currency,
+          source: row.source,
+          timestamp: row.timestamp,
+        });
+      }
+    } catch (error) {
+      logger.error('批量查询价格缓存失败:', error);
+    }
+
+    // 第三轮：crypto 补查 WebSocket 内存缓存（未命中 DB 但可能 WS 有）
+    const needNetwork: Array<{ symbol: string; category: string }> = [];
+    for (const [symbol, category] of uniqueItems) {
+      if (result.has(symbol)) continue;
+
+      if (category === 'crypto') {
+        const binanceSymbol = symbol.endsWith('USDT') ? symbol : `${symbol}USDT`;
+        const wsData = binanceWs.getPrice(binanceSymbol);
+        if (wsData && Date.now() - wsData.timestamp < WS_PRICE_MAX_AGE_MS) {
+          result.set(symbol, {
+            symbol,
+            price: wsData.price,
+            currency: 'USD',
+            source: 'binance-ws',
+            timestamp: wsData.timestamp,
+          });
+          continue;
+        }
+      }
+
+      needNetwork.push({ symbol, category });
+    }
+
+    // 第四轮：未命中的并发 fetch
+    if (needNetwork.length > 0) {
+      const fetched = await Promise.all(
+        needNetwork.map(({ symbol, category }) => this.getPrice(symbol, category)),
+      );
+      for (let i = 0; i < needNetwork.length; i++) {
+        result.set(needNetwork[i].symbol, fetched[i]);
+      }
+    }
+
+    // 给未出现的 symbol 填 null
+    for (const symbol of uniqueItems.keys()) {
+      if (!result.has(symbol)) result.set(symbol, null);
+    }
+
+    return result;
+  }
+
+  /**
    * 获取价格（优先从缓存，过期则重新获取）
    */
   async getPrice(symbol: string, category: string): Promise<PriceData | null> {
