@@ -275,50 +275,6 @@ router.put('/execute/:id', async (req, res) => {
   }
 });
 
-// 获取最优配比建议
-router.get('/optimal', async (req, res) => {
-  try {
-    const optimalAllocation = await rebalanceService.getOptimalAllocation();
-
-    if (!optimalAllocation) {
-      // Provide a dynamic fallback based on current config
-      const config = rebalanceService.getRebalanceConfig();
-      const fallback = config ? config.targets : { crypto: 0.4, stock: 0.4, gold: 0.2 };
-
-      return res.json({
-        success: true,
-        data: {
-          message: '历史数据不足，无法计算最优配比',
-          fallback
-        }
-      });
-    }
-
-    // 归一化确保总和为1
-    const total = Object.values(optimalAllocation).reduce((sum, v) => sum + v, 0);
-    const normalized: Record<string, number> = {};
-    for (const [cat, value] of Object.entries(optimalAllocation)) {
-      normalized[cat] = value / total;
-    }
-
-    res.json({
-      success: true,
-      data: {
-        optimal_allocation: normalized,
-        description: '基于历史数据风险调整收益率计算的最优配比',
-        disclaimer: '此建议仅供参考，投资有风险',
-        timestamp: Date.now()
-      }
-    });
-  } catch (error) {
-    logger.error('获取最优配比失败:', error);
-    res.status(500).json({
-      success: false,
-      error: '获取最优配比失败'
-    });
-  }
-});
-
 // 检查再平衡警告
 router.get('/check', async (req, res) => {
   try {

@@ -4,7 +4,6 @@ import {
   Landmark,
   Package,
   Scale,
-  TrendingUp,
   Globe,
 } from 'lucide-react'
 
@@ -13,7 +12,6 @@ const navigation = [
   { name: '账户', href: '/accounts', icon: Landmark },
   { name: '持仓', href: '/holdings', icon: Package },
   { name: '配置', href: '/allocation', icon: Scale },
-  { name: '分析', href: '/analytics', icon: TrendingUp },
   { name: '市场', href: '/market', icon: Globe },
 ]
 

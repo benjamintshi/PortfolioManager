@@ -4,7 +4,6 @@ import Dashboard from './pages/Dashboard'
 import Accounts from './pages/Accounts'
 import Holdings from './pages/Holdings'
 import Allocation from './pages/Allocation'
-import Analytics from './pages/Analytics'
 import Market from './pages/Market'
 
 function App() {
@@ -26,7 +25,6 @@ function App() {
             <Route path="accounts" element={<Accounts />} />
             <Route path="holdings" element={<Holdings />} />
             <Route path="allocation" element={<Allocation />} />
-            <Route path="analytics" element={<Analytics />} />
             <Route path="market" element={<Market />} />
           </Route>
         </Routes>

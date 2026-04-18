@@ -178,21 +178,14 @@ export const portfolioApi = {
   getSummary: () => api.get<ApiResponse>('/portfolio/summary'),
   
   // 获取组合历史
-  getHistory: (days?: number) => 
+  getHistory: (days?: number) =>
     api.get<ApiResponse>('/portfolio/history', { params: { days } }),
-  
-  // 获取相关性矩阵
-  getCorrelation: () => api.get<ApiResponse>('/portfolio/correlation'),
-  
+
   // 生成快照
   createSnapshot: () => api.post<ApiResponse>('/portfolio/snapshot'),
-  
+
   // 获取统计信息
   getStats: () => api.get<ApiResponse>('/portfolio/stats'),
-  
-  // 获取风险指标
-  getRisk: (days?: number) => 
-    api.get<ApiResponse>('/portfolio/risk', { params: { days } }),
 };
 
 /**
@@ -229,10 +222,7 @@ export const rebalanceApi = {
   // 更新执行结果
   updateResult: (id: number, result: Record<string, number>) =>
     api.put<ApiResponse>(`/rebalance/execute/${id}`, result),
-  
-  // 获取最优配比
-  getOptimal: () => api.get<ApiResponse>('/rebalance/optimal'),
-  
+
   // 检查警告
   checkAlert: () => api.get<ApiResponse>('/rebalance/check'),
 };
